@@ -25,7 +25,7 @@ bb demo
 ```
 
 The task clones the two dependencies as siblings at pinned commits — Eve
-(`johnmn3/atom.broker`, the `release/eve-0.9.3.2` line) and
+(`SeniorCareMarket/eve`, tag `v0.9.3.2`) and
 `johnmn3/cohost.cljc` — syncs this app into the Eve tree at
 `eve/capstone/cohost-media`, and runs Eve's own `bb cohost-media demo` there.
 First run builds what it needs (the browser page, the Node member, the
