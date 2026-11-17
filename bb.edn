@@ -1,0 +1,27 @@
+{:tasks
+ {:requires ([babashka.fs :as fs]
+             [babashka.process :as p])
+
+  setup {:doc "Fetch the two pinned dependencies as sibling checkouts (eve/, cohost.cljc/) and sync this app into the Eve tree at eve/capstone/cohost-media, where its boot program expects it."
+         :task (let [eve-sha "bbc78f5ff57115848bdb03334324f53d26a9bf29"
+                     cohost-sha "be20c1f51b437a9340e1af086044221f2fbe376f"
+                     ensure (fn [dir url sha]
+                              (when-not (fs/exists? dir)
+                                (p/shell "git" "clone" url dir))
+                              (p/shell {:dir dir} "git" "fetch" "origin")
+                              (p/shell {:dir dir} "git" "checkout" sha))]
+                 (ensure "eve" "https://github.com/johnmn3/atom.broker.git" eve-sha)
+                 (ensure "cohost.cljc" "https://github.com/johnmn3/cohost.cljc.git" cohost-sha)
+                 (doseq [e ["src" "page" "node" "glj" "deps.edn" "package.json" "package-lock.json"]
+                         :let [dest (fs/path "eve" "capstone" "cohost-media" e)]]
+                   (when (fs/exists? dest)
+                     (if (fs/directory? dest) (fs/delete-tree dest) (fs/delete dest)))
+                   (if (fs/directory? e) (fs/copy-tree e dest) (fs/copy e dest)))
+                 (println "cohost-media-example: eve and cohost.cljc at their pins; app synced into eve/capstone/cohost-media."))}
+
+  demo {:doc "The demo: bb demo [--hosts bb,jvm,glj,node,browser] — sets up, then runs Eve's own bb cohost-media demo from the Eve checkout (the boot program composes its classpath from Eve's hosts.edn roots, this app's sources and maven deps, and cohost's src, found as the ../cohost.cljc sibling)."
+        :depends [setup]
+        :task (let [r (apply p/shell {:dir "eve" :continue true} "bb" "cohost-media" "demo" *command-line-args*)]
+                (when-not (zero? (:exit r))
+                  (println "the demo exited" (:exit r) "- its run report says why"))
+                (System/exit (:exit r)))}}}
