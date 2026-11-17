@@ -1,10 +1,16 @@
-;; cohost-media's boot program (stock Clojure on the JVM, the run's only main): it creates the disk
+;; cohost-media's boot program, as portable cljc: cohost-media.boot is its host entry (the run's
+;; only main, on the primary sister) and this namespace is the program. It creates the disk
 ;; domain and the window, and starts every runtime as a POOL — the JVM member on a cohost.thread host
 ;; executor in this process, the other runtimes as process-backed pools on their native seats, each
-;; member handed its pool config (caps, pool sizes, options) as data. The boot program watches the
-;; pools itself (cohost-media.supervise's bookkeeping; no supervisor process), starts the gateway in
-;; process, writes the library, and checks the outputs. The browser stays a process on the network
-;; rung — the one member that is a pool of no runtime.
+;; member handed its pool config (caps, pool sizes, options) as data. Every thread the program
+;; starts is a cohost.thread thread (spawn) or a worker of a cohost.thread executor, and the pools
+;; are watched from those threads (cohost-media.supervise's bookkeeping; no supervisor process).
+;; The gateway starts in process, the library is written, and the outputs are checked. The browser
+;; starts through the same start call as every seat — a cohost :browser runtime executor — its
+;; args as data: the bootstream (a shell page in the run's page directory whose iframe is the
+;; app page itself) and the server (its port, and a :handler carrying the gateway's endpoints
+;; in-process and the run's output files). The seat serves the page from the run's first
+;; second; its runtime joins over the network rung, as every browser runtime does.
 ;;
 ;;   bb cohost-media demo [--hosts bb,jvm,...] [--kill transcode|coordinator]   (from eve/)
 ;;   bb cohost-media scan <dir> [--hosts ...]     the library of a folder of your own
@@ -13,10 +19,17 @@
 ;; A run's directory (~/.cohost-media/runs/<stamp>) holds media/ (the demo's generated files), out/ (transcodes,
 ;; thumbnails, contact sheets), d (the disk domain's files), logs/ (each member's), report.edn. The window is
 ;; /dev/shm/cohost-media/<stamp> (decoded PCM; the system's temporary directory where there is no /dev/shm, as on macOS). The boot program reads and writes the domain's atoms directly; the members join eve.thread.
-(ns cohost-media.boot
+(ns cohost-media.start
+  "The boot program (cohost-media.boot is its host entry): a run's pools and their watches, the
+   page, the checks. Portable cljc over cohost.thread and the app's facilities
+   (cohost-media.boot-fs, cohost-media.boot-proc, eve.process); the seat's own leaves — its
+   environment and its own process, its sockets and the browser's DevTools protocol — are
+   the :clj arms below and in the facility namespaces."
   (:refer-clojure :exclude [swap!])
-  (:require [cohost.hosts.auto]
-            [cohost.thread :as thread]
+  (:require [cohost.thread :as thread]
+            ;; the browser seat's driver is a JVM-seat facility (its server
+            ;; and browser live in this process): the :clj arm only
+            #?(:clj [cohost.cljs-pool :as cljs-pool])
             [cohost-media.boot-fs :as fs]
             [cohost-media.boot-proc :as p]
             [clojure.data.json :as json]
@@ -24,21 +37,52 @@
             [clojure.string :as str]
             [eve.host :refer [swap!]]
             [eve.atom :as ea]
+            [eve.process :as proc]
             [cohost-media.core :as em]
             [cohost-media.domain :as domain]
             [cohost-media.gateway :as gateway]
             [cohost-media.member :as member]
             [cohost-media.supervise :as sv])
-  (:import [java.net URI]
-           [java.net.http HttpClient HttpRequest HttpRequest$BodyPublishers HttpResponse$BodyHandlers WebSocket WebSocket$Listener]
-           [java.util.concurrent CompletableFuture CompletionStage]))
+  #?(:clj (:import [java.net URI URLDecoder]
+                   [java.net.http HttpClient HttpRequest HttpRequest$BodyPublishers HttpResponse$BodyHandlers WebSocket WebSocket$Listener])))
+
+;; ---------------------------------------------------------------------------
+;; Host leaves: the few places the program touches its own seat directly —
+;; its environment, its properties, its own process, the time as a stamp.
+;; One #? arm each; everything else in this namespace is portable over the
+;; facilities (boot-fs, boot-proc, eve.process, cohost.thread).
+;; ---------------------------------------------------------------------------
+
+(defn- getenv
+  "This process's environment variable k, or nil."
+  [k]
+  #?(:clj (System/getenv k)
+     :cljs (aget js/process.env k)))
+
+(defn- getprop
+  "This runtime's property k (on the JVM, its system properties), or nil."
+  [k]
+  #?(:clj (System/getProperty k)
+     :cljs nil))
+
+(defn- self-pid
+  "This process's OS pid, where the seat names one."
+  []
+  #?(:clj (.pid (java.lang.ProcessHandle/current))
+     :cljs nil))
+
+(defn- stamp-now
+  "The current local date and time as a string: a run stamp's source."
+  []
+  #?(:clj (str (java.time.LocalDateTime/now))
+     :cljs (.toISOString (js/Date.))))
 
 (def eve-dir (str (fs/absolutize ".")))
 (def app-dir (str (fs/path eve-dir "capstone" "cohost-media")))
 (def hosts-edn (edn/read-string (slurp (str (fs/path eve-dir "hosts.edn")))))
 
-(defn now [] (System/currentTimeMillis))
-(defn log [& xs] (println (str "[cohost-media " (java.time.LocalTime/now) "]") (str/join " " xs)) (flush))
+(defn now [] (proc/now-ms))
+(defn log [& xs] (println (str "[cohost-media " #?(:clj (java.time.LocalTime/now) :cljs (.toLocaleTimeString (js/Date.))) "]") (str/join " " xs)) (flush))
 
 (defn roots [host & more]
   (str/join ":" (concat [(str (fs/path eve-dir "src"))]
@@ -53,10 +97,10 @@
   (let [which (fn [n & fallbacks] (or (some-> (fs/which n) str) (some #(when (fs/executable? %) %) fallbacks) (last fallbacks)))]
     {:jolt (which "jolt" "/opt/eve-tools/jolt/bin/jolt")
      ;; a jolt run from its source tree needs a Chez Scheme (JOLT_CHEZ); a release build (Homebrew's) carries its own
-     :jolt-chez (or (System/getenv "JOLT_CHEZ")
+     :jolt-chez (or (getenv "JOLT_CHEZ")
                     (when (fs/executable? "/opt/eve-tools/chez/bin/scheme") "/opt/eve-tools/chez/bin/scheme"))
      ;; EVE_CHROME, else the first Chromium or Chrome found: Playwright's on this tree's Linux boxes, macOS's apps, PATH
-     :chrome (or (System/getenv "EVE_CHROME")
+     :chrome (or (getenv "EVE_CHROME")
                  (some (fn [c] (when (fs/executable? c) c))
                        ["/opt/pw-browsers/chromium"
                         "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
@@ -64,7 +108,7 @@
                  (some #(some-> (fs/which %) str) ["chromium" "chromium-browser" "google-chrome" "google-chrome-stable"])
                  "chromium")
      :path (str "/opt/eve-tools/jolt/bin:/opt/eve-tools/chez/bin:"
-                (System/getenv "PATH"))}))
+                (getenv "PATH"))}))
 
 (def tools (find-tools))
 
@@ -82,11 +126,33 @@
    runtime loads; the boot program hands each pool its entry as data)."
   member/pool-configs)
 
+(def page-check
+  "The page's check row, as data: the file whose library row the page renders and the job kind
+   it re-queues from the page — the done bar's browser row, named once for the shell page that
+   carries it (prepare-page!) and the check that reads it back (browser-check!)."
+  "f01:thumb")
+
+(defn browser-args
+  "The browser pool's args, as data — the one source the start call (start-seat!) reads: the
+   bootstream the seat opens and the server it serves it with. The bootstream is the run's
+   page directory's shell page (prepare-page! writes it): the seat's realm boots in the
+   shell, and the app page itself runs in the shell's iframe — the app bundle's globals are
+   its own, and the iframe's document carries the check row in its URL
+   (…/index.html?check=<page-check>). The server is the seat's: its port is the run's page
+   port; cross-origin isolation is its automatic default (the page's SharedArrayBuffer tier
+   needs it, in the shell and the iframe alike); its :handler — the gateway's endpoints
+   in-process and the run's output files — is a function, supplied by start-seat! when the
+   seat starts, over the gateway the pools start first."
+  [cfg]
+  {:seat :browser
+   :bootstream (str (fs/path (:page cfg) "shell.html"))
+   :server {:port (:page-port cfg)}})
+
 (defn member-cmd
   "The command line starting member rid of host h on domain base (out, window) as a process-backed
    pool on its native seat; cfg the run's (control :config). Every member runs the same shared entry
    (cohost-media.member's -main) with its pool config as an EDN argument; a babashka member is also
-   given the gateway's URL and the run's api key (its ctx records them), the browser the page's URL.
+   given the gateway's URL and the run's api key (its ctx records them).
    The JVM member has no command line: it runs in this process (start-pools!)."
   [h rid base out window cfg]
   (let [args [base out window rid]
@@ -123,21 +189,7 @@
                      "cohost-media.member"]
                     args
                     [config])
-       :env (cond-> {"PATH" (:path tools)} (:jolt-chez tools) (assoc "JOLT_CHEZ" (:jolt-chez tools)))}
-      ;; the browser: Chromium on the page the boot program serves (its runtime joins over the network rung through the
-      ;; boot program's proxy; ?check= the done bar's re-queue row), a fresh profile each start — a window of its own
-      ;; where the run shows the page (:show-page), else headless
-      :browser
-      (let [url (str "http://127.0.0.1:" (:page-port cfg) "/index.html?check=f01:thumb")
-            profile (str "--user-data-dir=" (fs/create-temp-dir {:prefix "cohost-media-chrome-"}))]
-        {:cmd (if (:show-page cfg)
-                (concat [(:chrome tools) "--no-first-run" "--no-default-browser-check" "--no-proxy-server"
-                         "--enable-logging=stderr" "--v=0" "--window-size=1400,1000" profile]
-                        ;; Chromium refuses to run as root with its sandbox
-                        (when (= "root" (System/getProperty "user.name")) ["--no-sandbox"])
-                        [(str "--app=" url)])
-                [(:chrome tools) "--headless=new" "--no-sandbox" "--disable-gpu" "--no-proxy-server" "--no-first-run"
-                 "--enable-logging=stderr" "--v=0" profile url])}))))
+       :env (cond-> {"PATH" (:path tools)} (:jolt-chez tools) (assoc "JOLT_CHEZ" (:jolt-chez tools)))})))
 
 (def default-hosts
   "A run's runtimes of the job atom: babashka (the index), the JVM (metadata, hashes, loudness — and the coordinator),
@@ -148,22 +200,28 @@
 
 (defn child-specs
   "The run's children, as the boot program's watch takes them (cohost-media.supervise): the gateway; a member per host
-   of hosts — babashka and the browser once the gateway is up: the page's first act is a gateway call, and its workers
-   die on the proxy's 503 if they make it before the gateway answers; the boot program serves the page itself from
-   the run's first second and the page watches the members join once it starts. The gateway and the JVM member run
-   in this process: their :cmd names what runs, for the record."
+   of hosts — babashka once the gateway is up (its ctx's first act is a gateway call). The browser starts with the
+   pools: its seat's server answers from the run's first second, the gateway's endpoints in-process behind it, and
+   the page watches the members join. The gateway, the JVM member and the browser run in this process: their
+   :cmd names what runs, for the record."
   [run cfg hosts]
   (let [logs (str (fs/path (:dir run) "logs"))]
     (into {"gateway" {:host :gateway :member? false :wait [] :logs logs :dir eve-dir :env {}
                       :cmd ["in-process" "cohost-media.gateway"]}}
           (map (fn [h]
                  (let [rid (name h)]
-                   (if (= :jvm h)
+                   (cond
+                     (= :jvm h)
                      [rid {:host h :member? true :wait [] :logs logs :dir eve-dir :env {}
                            :cmd ["in-process" "cohost-media.member"]}]
+                     (= :browser h)
+                     [rid {:host h :member? true :wait [] :logs logs :dir eve-dir :env {}
+                           :cmd ["in-process" "cohost.cljs-pool" ":browser"]
+                           :args (browser-args cfg)}]
+                     :else
                      (let [{:keys [cmd env dir]} (member-cmd h rid (:base run) (:out run) (:window run) cfg)]
                        [rid {:host h :member? true :cmd (mapv str cmd) :env (or env {}) :dir (str (or dir eve-dir))
-                             :logs logs :wait (case h (:bb :browser) [:gateway] [])}])))))
+                             :logs logs :wait (case h :bb [:gateway] [])}])))))
           hosts)))
 
 ;; ---------------------------------------------------------------------------
@@ -243,104 +301,199 @@
 (defn- spawn-child!
   "Start process child rid once (its next incarnation): through /bin/sh -c supervise's script, so the
    child's OS process is the program's own and its output lands in its log files; a waiter thread
-   records the exit and starts it again per the restart policy (a clean exit is a stop, not a restart)."
+   (a cohost.thread spawn) records the exit and starts it again per the restart policy (a clean
+   exit is a stop, not a restart). Starting a process is the boot seat's own work: the :clj arm."
   [atoms procs rid child]
-  (let [ctl (:control atoms)
-        n (sv/next-start ctl rid)
-        logf (sv/log-path child rid n)
-        env (merge {"PATH" (System/getenv "PATH")} (:env child)
-                   {"EVE_LOG" logf "EVE_ERR" (str logf ".err")})
-        pr (apply p/process {:out :string :err :string :extra-env env :dir (:dir child)}
-                  "/bin/sh" "-c" (sv/sh-script) (:cmd child))]
-    (sv/started! ctl rid child (.pid ^Process (.-proc pr)) n (now))
-    (clojure.core/swap! procs assoc rid pr)
-    (doto (Thread. (fn []
-                     (let [code (:exit (deref pr))]
-                       (sv/exited! ctl rid code (now))
-                       (when (and (not (sv/stopping? ctl)) (not (zero? code)))
-                         (if (sv/restart? (:exits (get (:members (sv/value ctl)) rid)) (now))
-                           (spawn-child! atoms procs rid child)
-                           (sv/gave-up! ctl rid (now)))))))
-      (.setDaemon true)
-      (.start))
-    pr))
+  #?(:clj
+     (let [ctl (:control atoms)
+           n (sv/next-start ctl rid)
+           logf (sv/log-path child rid n)
+           env (merge {"PATH" (getenv "PATH")} (:env child)
+                      {"EVE_LOG" logf "EVE_ERR" (str logf ".err")})
+           pr (apply p/process {:out :string :err :string :extra-env env :dir (:dir child)}
+                     "/bin/sh" "-c" (sv/sh-script) (:cmd child))]
+       (sv/started! ctl rid child (.pid ^Process (.-proc pr)) n (now))
+       (clojure.core/swap! procs assoc rid pr)
+       (thread/spawn
+        (fn []
+          (let [code (:exit (deref pr))]
+            (sv/exited! ctl rid code (now))
+            (when (and (not (sv/stopping? ctl)) (not (zero? code)))
+              (if (sv/restart? (:exits (get (:members (sv/value ctl)) rid)) (now))
+                (spawn-child! atoms procs rid child)
+                (sv/gave-up! ctl rid (now)))))))
+       pr)
+     :cljs (throw (ex-info "start: process seats start on the boot seat" {}))))
 
 (defn- start-child!
-  "Start process child rid when the servers it waits for are up (control :servers)."
+  "Start process child rid when the servers it waits for are up (control :servers): a watch
+   thread (a cohost.thread spawn) waits for its readiness, then starts it."
   [atoms procs rid child]
-  (doto (Thread. (fn []
-                   (loop []
-                     (cond (sv/stopping? (:control atoms)) nil
-                           (sv/ready? (:control atoms) child) (spawn-child! atoms procs rid child)
-                           :else (do (Thread/sleep 200) (recur))))))
-    (.setDaemon true)
-    (.start)))
+  (thread/spawn
+   (fn []
+     (loop []
+       (cond (sv/stopping? (:control atoms)) nil
+             (sv/ready? (:control atoms) child) (spawn-child! atoms procs rid child)
+             :else (do (proc/sleep-ms! 200) (recur)))))))
 
 (defn- watch-jvm-member!
-  "The JVM member's pool: its serve! on the host executor ex, watched — an error exit is recorded and
-   the member is submitted again per the restart policy; a clean exit (the run's :stop) ends the watch."
+  "The JVM member's pool: its serve! on the host executor ex, watched (this watch is a
+   cohost.thread spawn) — an error exit is recorded and the member is submitted again per the
+   restart policy; a clean exit (the run's :stop) ends the watch."
   [run atoms cfg ex procs]
-  (doto (Thread.
-         (fn []
-           (loop []
-             (let [ctl (:control atoms)
-                   rid "jvm"
-                   child (get (:children (sv/value ctl)) rid)
-                   n (sv/next-start ctl rid)]
-               (sv/started! ctl rid child (.pid (java.lang.ProcessHandle/current)) n (now))
-               (let [fut (thread/submit-future
-                          ex (fn [] (member/attempt
-                                     (fn [] (member/serve! (:base run) (:out run) (:window run) rid
-                                                           (str "http://127.0.0.1:" (:gateway-port cfg) "/gw")
-                                                           (:api-key cfg) (:jvm pool-configs))))))
-                     _ (clojure.core/swap! procs assoc rid {:in-process true :future fut})
-                     [code err] (try (let [[ok? e] (thread/deref-future fut)] [(if ok? 0 1) e])
-                                     (catch Throwable t [1 t]))]
-                 (when-not (zero? code)
-                   (println (pr-str {:step :jvm-member-error :rid rid :error (str err)}))
-                   (when (instance? Throwable err) (.printStackTrace ^Throwable err)))
-                 (sv/exited! ctl rid code (now))
-                 (when (and (not (sv/stopping? ctl)) (not (zero? code)))
-                   (if (sv/restart? (:exits (get (:members (sv/value ctl)) rid)) (now))
-                     (recur)
-                     (sv/gave-up! ctl rid (now)))))))))
-    (.setDaemon true)
-    (.start)))
+  (thread/spawn
+   (fn []
+     (loop []
+       (let [ctl (:control atoms)
+             rid "jvm"
+             child (get (:children (sv/value ctl)) rid)
+             n (sv/next-start ctl rid)]
+         (sv/started! ctl rid child (self-pid) n (now))
+         (let [fut (thread/submit-future
+                    ex (fn [] (member/attempt
+                               (fn [] (member/serve! (:base run) (:out run) (:window run) rid
+                                                     (str "http://127.0.0.1:" (:gateway-port cfg) "/gw")
+                                                     (:api-key cfg) (:jvm pool-configs))))))
+               _ (clojure.core/swap! procs assoc rid {:in-process true :future fut})
+               [code err] (try (let [[ok? e] (thread/deref-future fut)] [(if ok? 0 1) e])
+                               (catch Throwable t [1 t]))]
+           (when-not (zero? code)
+             (println (pr-str {:step :jvm-member-error :rid rid :error (str err)}))
+             (when (instance? Throwable err) (.printStackTrace ^Throwable err)))
+           (sv/exited! ctl rid code (now))
+           (when (and (not (sv/stopping? ctl)) (not (zero? code)))
+             (if (sv/restart? (:exits (get (:members (sv/value ctl)) rid)) (now))
+               (recur)
+               (sv/gave-up! ctl rid (now))))))))))
 
 (defn- watch-asks!
   "The coordinator's restart asks (a member whose lease lapsed while its process lives): kill the
    process child's pid; its waiter starts it again. An in-process member has no pid to kill — the
-   JVM member's own watch restarts it when its serve! ends."
+   JVM member's own watch restarts it when its serve! ends. The watch is a cohost.thread spawn."
   [atoms procs]
-  (doto (Thread. (fn []
-                   (loop []
-                     (when-not (sv/stopping? (:control atoms))
-                       (doseq [[rid pid] (sv/asked (:control atoms))]
-                         (sv/restarting! (:control atoms) rid (now))
-                         (when (and pid (instance? cohost_media.boot_proc.Proc (get @procs rid)))
-                           (p/shell {:continue true} "kill" "-9" (str pid))))
-                       (Thread/sleep 300)
-                       (recur)))))
-    (.setDaemon true)
-    (.start)))
+  (thread/spawn
+   (fn []
+     (loop []
+       (when-not (sv/stopping? (:control atoms))
+         (doseq [[rid pid] (sv/asked (:control atoms))]
+           (sv/restarting! (:control atoms) rid (now))
+           (when (and pid (p/proc? (get @procs rid)))
+             (p/shell {:continue true} "kill" "-9" (str pid))))
+         (proc/sleep-ms! 300)
+         (recur))))))
+
+;; ---------------------------------------------------------------------------
+;; The browser seat's handler: the page's same-origin traffic — the gateway's
+;; endpoints in-process (cohost-media.gateway/seat-handler over the gateway
+;; the pools start first) and the run's output files. The seat's server puts
+;; both under its header pipeline (cross-origin isolation included); the
+;; page's wire and blob traffic cross no HTTP hop to reach them.
+;; ---------------------------------------------------------------------------
+
+(def ^:private page-mime
+  {"html" "text/html" "js" "text/javascript" "mjs" "text/javascript"
+   "json" "application/json" "edn" "application/edn" "css" "text/css"
+   "png" "image/png" "jpg" "image/jpeg" "jpeg" "image/jpeg" "svg" "image/svg+xml"
+   "ico" "image/x-icon" "mp3" "audio/mpeg" "wav" "audio/wav"
+   "mp4" "video/mp4" "webm" "video/webm" "mov" "video/quicktime"})
+
+#?(:clj
+   (do
+   (defn- out-file-resp
+     "The run's output files as a browser-seat handler response: the file under
+      out-dir the request path names (the media outputs: /media/thumbs/<id>.jpg
+      and friends), as base64 bytes (:body-as :b64 — the seat puts them on the
+      wire as bytes), with the Range support the page's media elements use —
+      the old page server's file answer, as a handler value instead of a
+      socket's. nil when the path names no output file (the seat's 404)."
+     [out-dir req]
+     (let [rel (URLDecoder/decode (subs (:uri req) 1) "UTF-8")
+           f (fs/file out-dir rel)]
+       (when (and (not (str/includes? rel "..")) (fs/exists? f) (not (fs/directory? f)))
+         (let [total (fs/size f)
+               ctype (get page-mime (fs/extension f) "application/octet-stream")
+               range-h (get (:headers req) "range")
+               [a b] (when range-h
+                       (let [[_ a b] (re-find #"bytes=(\d*)-(\d*)" range-h)]
+                         [(when (seq a) (parse-long a)) (when (seq b) (parse-long b))]))
+               start (or a 0)
+               end (min (or b (dec total)) (dec total))
+               bs (java.util.Arrays/copyOfRange (fs/read-all-bytes f) start (inc end))]
+           {:status (if range-h 206 200)
+            :headers (cond-> {"Content-Type" ctype
+                              "Accept-Ranges" "bytes"}
+                       range-h (assoc "Content-Range" (str "bytes " start "-" end "/" total)))
+            :body (.encodeToString (java.util.Base64/getEncoder) bs)
+            :body-as :b64}))))))
+
+(defn- seat-handler
+  "The browser seat's :handler for this run: gateway/seat-handler over the
+   started gateway, then the run's output files. The handler runs on the boot
+   seat (its server and the gateway live here): the :clj arm builds it."
+  [run atoms procs]
+  #?(:clj (let [gw (gateway/seat-handler (get @procs "gateway"))]
+            (fn [req] (or (gw req) (out-file-resp (:out run) req))))
+     :cljs (throw (ex-info "start: the browser seat's handler runs on the boot seat" {}))))
+
+(defn- start-browser-seat!
+  "The browser member: a cohost :browser runtime executor (cohost.cljs-pool)
+   over the run's page directory — the seat's server on the run's page port,
+   its :handler the gateway in-process (seat-handler), its bootstream the
+   page directory's shell. The executor IS the member: it goes into procs
+   under the member's name, and stop-members! shuts it down with the other
+   executors. The seat boots lazily, on the first submit: a boot thread
+   submits a no-op form (the boot is the realm's, in the shell page), and
+   supervise's started! is recorded when the seat answers — the pid is this
+   process's, as for the JVM member, whose pool also lives here. A seat
+   that fails to boot is an exited member (code 1); the seat has no
+   restart of its own, where the watched processes had theirs."
+  [run atoms cfg procs child]
+  #?(:clj
+     (let [ex (cljs-pool/executor 1 (assoc (browser-args cfg)
+                                           :handler (seat-handler run atoms procs)))]
+       (clojure.core/swap! procs assoc "browser" ex)
+       (thread/spawn
+        (fn []
+          (try
+            (thread/submit-form ex 'cljs.user '(fn [] true))
+            (sv/started! (:control atoms) "browser" child (self-pid)
+                         (sv/next-start (:control atoms) "browser") (now))
+            (catch Throwable t
+              (log "the browser seat failed to start:" (ex-message t))
+              (sv/exited! (:control atoms) "browser" 1 (now))))))
+       ex)
+     :cljs (throw (ex-info "start: the browser seat starts on the boot seat" {}))))
+
+(defn- start-seat!
+  "Start one seat's pool — the one call every seat starts through, on cohost.thread. The JVM
+   seat's pool is its executor in this process, watched by watch-jvm-member!; the browser's
+   pool is its cohost :browser runtime executor (start-browser-seat!), its args as data
+   (browser-args) on its child spec; every other seat's pool is a watched process on its
+   native seat."
+  [run atoms cfg procs jvm-ex h]
+  (let [ctl (:control atoms)
+        rid (name h)
+        child (get (:children (sv/value ctl)) rid)]
+    (case h
+      :jvm (when jvm-ex (watch-jvm-member! run atoms cfg jvm-ex procs))
+      :browser (when child (start-browser-seat! run atoms cfg procs child))
+      (:bb :node :glj :jolt) (when child (start-child! atoms procs rid child))
+      nil)))
 
 (defn start-pools!
   "Start the run's pools: the supervisor note (the boot program itself, host :boot), the gateway in
-   this process, the JVM member's executor pool when a JVM member runs, and a watched process pool
-   per other member; then the restart-ask watch."
+   this process, the JVM member's executor when a JVM member runs, and a pool per seat through
+   start-seat!; then the restart-ask watch."
   [run atoms cfg hosts procs]
   (let [ctl (:control atoms)]
-    (sv/up! ctl :boot (.pid (java.lang.ProcessHandle/current)) (now))
+    (sv/up! ctl :boot (self-pid) (now))
     (clojure.core/swap! procs assoc "gateway" (gateway/start! atoms))
-    (when (some #{:jvm} hosts)
-      (let [ex (thread/new-executor :pooled 1)]
-        (clojure.core/swap! procs assoc "executor" ex)
-        (watch-jvm-member! run atoms cfg ex procs)))
-    (doseq [h hosts
-            :when (contains? #{:bb :node :glj :jolt :browser} h)]
-      (let [rid (name h)
-            child (get (:children (sv/value ctl)) rid)]
-        (when child (start-child! atoms procs rid child))))
+    (let [jvm-ex (when (some #{:jvm} hosts)
+                   (let [ex (thread/new-executor :pooled 1)]
+                     (clojure.core/swap! procs assoc "executor" ex)
+                     ex))]
+      (doseq [h hosts]
+        (start-seat! run atoms cfg procs jvm-ex h)))
     (watch-asks! atoms procs)))
 
 (defn wait-gateway!
@@ -357,7 +510,7 @@
                             {:unready true}))
             :else (do (when (and (pos? waited) (zero? (mod waited 30000)))
                         (log "the gateway is still starting (" (quot waited 1000) "s)"))
-                      (Thread/sleep 300) (recur (+ waited 300)))))))
+                      (proc/sleep-ms! 300) (recur (+ waited 300)))))))
 
 (defn alive? [pid] (zero? (:exit (p/shell {:continue true :out :string :err :string} "kill" "-0" (str pid)))))
 
@@ -368,7 +521,7 @@
 ;; ---------------------------------------------------------------------------
 
 (defn new-run [opts]
-  (let [stamp (str (java.time.LocalDateTime/now))
+  (let [stamp (stamp-now)
         stamp (str/replace (subs stamp 0 (min 23 (count stamp))) #"[:.]" "-")
         dir (str (fs/path (fs/home) ".cohost-media" "runs" stamp))
         window (str (fs/path (if (fs/directory? "/dev/shm") "/dev/shm" (fs/temp-dir)) "cohost-media" stamp))]
@@ -398,7 +551,7 @@
           rid (get-in ctl [:config :coordinator])
           pid (get-in ctl [:members rid :pid])]
       (when (and pid (some #{:done} statuses) (some #{:planned} statuses))
-        (if (instance? cohost_media.boot_proc.Proc (get @procs rid))
+        (if (p/proc? (get @procs rid))
           (do (log "kill -9 the coordinator" rid "pid" pid)
               (kill-9! pid)
               (clojure.core/swap! state assoc :killed {:rid rid :pid pid :coordinator true :at (now)}))
@@ -413,7 +566,7 @@
         (let [rid (first (str/split (:owner d) #"#"))
               pid (get-in @(:control atoms) [:members rid :pid])]
           (when pid
-            (if (instance? cohost_media.boot_proc.Proc (get @procs rid))
+            (if (p/proc? (get @procs rid))
               (do (log "kill -9" rid "pid" pid "mid-transcode of" id (get-in d [:work :args 0 :id]))
                   (kill-9! pid)
                   (clojure.core/swap! state assoc :killed {:rid rid :pid pid :descriptor id :file (get-in d [:work :args 0 :id])
@@ -466,7 +619,7 @@
           ;; deref of a tiny value measures 102–272 ms, so the cycle outlasted its own sleep and
           ;; the wait pinned a core for the whole run, idle or not.)
           (and (= psig last-psig) (< (- t last-full) 5000))
-          (do (Thread/sleep 300)
+          (do (proc/sleep-ms! 300)
               (recur last-print last-sig last-change psig last-full))
           (complete? atoms) true
           :else
@@ -490,12 +643,13 @@
                                (apply log (if u (conj head u) head))
                                (now))
                              last-print)]
-                    (Thread/sleep 300)
+                    (proc/sleep-ms! 300)
                     (recur lp sig last-change psig (now)))))))))))
 
 (defn stop-members!
-  "The run's stop written; the members end (their serve loops see :stop; the browser is ended by its
-   watch), the gateway stops, the executor shuts down — or, after 40 s, what is left is killed."
+  "The run's stop written; the members end (their serve loops see :stop), the gateway stops, the
+   executors shut down — the JVM member's and the browser seat's alike — or, after 40 s, what is
+   left is killed."
   [atoms procs]
   (try
     (write! atoms :control assoc :stop true)
@@ -505,17 +659,19 @@
     (loop []
       (when (and (< (- (now) t0) 40000)
                  (or (some (fn [[rid v]] (and (not= "browser" rid)
-                                              (instance? cohost_media.boot_proc.Proc v) (p/alive? v))) @procs)
+                                              (p/proc? v) (p/alive? v))) @procs)
                      (and (contains? @procs "jvm")
                           (not= :stopped (get-in @(:control atoms) [:members "jvm" :state])))))
-        (Thread/sleep 300)
+        (proc/sleep-ms! 300)
         (recur))))
   (doseq [[_ v] @procs
-          :when (instance? cohost_media.boot_proc.Proc v)]
+          :when (p/proc? v)]
     (p/destroy-tree v))
   (when-let [srv (get @procs "gateway")]
     (try ((:stop srv)) (catch Throwable _ nil)))
   (when-let [ex (get @procs "executor")]
+    (try (thread/shutdown-executor! ex) (catch Throwable _ nil)))
+  (when-let [ex (get @procs "browser")]
     (try (thread/shutdown-executor! ex) (catch Throwable _ nil))))
 
 ;; ---------------------------------------------------------------------------
@@ -539,13 +695,15 @@
     (some-> i second parse-double)))
 
 (defn sha256
-  "A file's SHA-256, hex (in process: macOS has no sha256sum)."
+  "A file's SHA-256, hex (in process: macOS has no sha256sum). The digest is the boot seat's
+   own work: the :clj arm."
   [path]
-  (let [md (java.security.MessageDigest/getInstance "SHA-256")
-        buf (byte-array 65536)]
-    (with-open [in (java.io.FileInputStream. (str path))]
-      (loop [] (let [n (.read in buf)] (when (pos? n) (.update md buf 0 n) (recur)))))
-    (apply str (map #(format "%02x" (bit-and % 0xff)) (.digest md)))))
+  #?(:clj (let [md (java.security.MessageDigest/getInstance "SHA-256")
+                buf (byte-array 65536)]
+            (with-open [in (java.io.FileInputStream. (str path))]
+              (loop [] (let [n (.read in buf)] (when (pos? n) (.update md buf 0 n) (recur)))))
+            (apply str (map #(format "%02x" (bit-and % 0xff)) (.digest md))))
+     :cljs (throw (ex-info "start: checksums are the boot seat's" {}))))
 
 (defn rid-of [owner] (when owner (first (str/split owner #"#"))))
 
@@ -635,8 +793,9 @@
       (recur more (update opts :args (fnil conj []) a)))))
 
 (defn free-port []
-  (with-open [s (java.net.ServerSocket. 0)]
-    (.getLocalPort s)))
+  #?(:clj (with-open [s (java.net.ServerSocket. 0)]
+            (.getLocalPort s))
+     :cljs (throw (ex-info "start: ports are the boot seat's" {}))))
 
 (defn random-hex [n]
   (apply str (repeatedly n #(rand-nth "0123456789abcdef"))))
@@ -644,12 +803,12 @@
 (defn display?
   "Whether this machine shows windows: macOS, or a Linux session with an X or Wayland display."
   []
-  (boolean (or (str/includes? (str/lower-case (System/getProperty "os.name")) "mac")
-               (some #(seq (System/getenv %)) ["DISPLAY" "WAYLAND_DISPLAY"]))))
+  (boolean (or (str/includes? (str/lower-case (getprop "os.name")) "mac")
+               (some #(seq (getenv %)) ["DISPLAY" "WAYLAND_DISPLAY"]))))
 
 (defn configure!
   "The run's servers configured in the control atom before any member starts: the media server's and the gateway's
-   ports, the page's own port (the boot program serves the page itself, from the run's first second), the watched folder
+   ports, the page's own port (the browser seat's server port: the seat serves the page from the run's first second), the watched folder
    (the Go member's watcher scans it when a Go member runs), the page's directory, and the gateway's api key and
    store secret, minted for this run."
   [run atoms hosts media-dir]
@@ -671,7 +830,9 @@
 (defn prepare-page!
   "The page's directory for this run: index.html, the compiled page (target/page/js: main.js, and the manifest.edn its
    worker threads find it by), and its config.json (the domain id and api key it signs in with, the run's output and
-   window directories). Is the compiled page there?"
+   window directories), and shell.html — the browser seat's bootstream: the seat's realm boots in
+   the shell, and the app page itself runs in its iframe, its URL carrying the check row
+   (page-check). Is the compiled page there?"
   [run cfg]
   (let [dir (:page cfg)
         built (fs/path app-dir "target" "page" "js")
@@ -685,326 +846,131 @@
           (str "{\"domain_id\":\"" (:domain-id cfg) "\",\"api_key\":\""
                (:api-key cfg) "\",\"out\":\"" (:out run) "\",\"window\":\""
                (:window run) "\"}"))
+    (spit (str (fs/path dir "shell.html"))
+          (str "<!doctype html><html><head><meta charset=\"utf-8\"><title>cohost-media</title></head>"
+               "<body style=\"margin:0\"><iframe src=\"/index.html?check=" page-check "\" "
+               "allow=\"cross-origin-isolated\" style=\"border:0;width:100vw;height:100vh;display:block\">"
+               "</iframe></body></html>"))
     (fs/exists? js)))
 
-;; ---------------------------------------------------------------------------
-;; The page server: the boot program serves the run's page itself, from the run's
-;; first second — the browser waits for nothing and opens the app at once, and
-;; the page watches the members join (starting an app = the app comes up).
-;; The page's rung traffic (/gw/, /blobs/) is proxied to the gateway's port;
-;; until the gateway is up the proxy answers 503 and the page's rung clients
-;; retry. Media outputs come from the run's out directory, with ranges. The
-;; Go media server still serves the same page and outputs on :media-port.
-;; ---------------------------------------------------------------------------
 
-(def ^:private page-mime
-  {"html" "text/html" "js" "text/javascript" "mjs" "text/javascript"
-   "json" "application/json" "edn" "application/edn" "css" "text/css"
-   "png" "image/png" "jpg" "image/jpeg" "jpeg" "image/jpeg" "svg" "image/svg+xml"
-   "ico" "image/x-icon" "mp3" "audio/mpeg" "wav" "audio/wav"
-   "mp4" "video/mp4" "webm" "video/webm" "mov" "video/quicktime"})
+#?(:clj
+   (do
+   (def ^:private http-client (delay (HttpClient/newHttpClient)))
 
-(defn- http-answer!
-  "One HTTP/1.1 response on out; the connection closes after it (the page's
-   clients all live with that)."
-  [^java.io.OutputStream out status ctype ^bytes body extra head?]
-  (let [head (str "HTTP/1.1 " status "\r\n"
-                  "Content-Type: " ctype "\r\n"
-                  "Content-Length: " (alength body) "\r\n"
-                  "Accept-Ranges: bytes\r\n"
-                  (str/join "" (map (fn [[k v]] (str k ": " v "\r\n")) extra))
-                  "Connection: close\r\n\r\n")]
-    (.write out (.getBytes head "UTF-8"))
-    (when (and (not head?) (pos? (alength body))) (.write out body))
-    (.flush out)))
+   (defn- http-get-string
+     "GET url's body as a string (the CDP driver's /json/list). The request carries a timeout: a peer
+      that accepts and never answers (a wedged browser, a mediating sandbox) must fail this call, not
+      park the run's main thread past every outer budget — the old launcher's client failed such a
+      fetch fast, where java.net.http's send waits forever."
+     [url]
+     (let [req (.build (-> (HttpRequest/newBuilder (URI/create url))
+                           (.timeout (java.time.Duration/ofSeconds 15))))]
+       (String. ^bytes (.body (.send ^HttpClient @http-client req (HttpResponse$BodyHandlers/ofByteArray))) "UTF-8")))
 
-(defn- read-head
-  "Read from in until the blank line ending the headers; the head as a string."
-  [^java.io.InputStream in]
-  (let [buf (java.io.ByteArrayOutputStream.)]
-    (loop []
-      (let [b (.read in)]
-        (when (neg? b) (throw (ex-info "eof in request head" {})))
-        (.write buf b)
-        (let [a (.toByteArray buf)
-              n (alength a)]
-          (if (and (>= n 4)
-                   (= 13 (aget a (- n 4))) (= 10 (aget a (- n 3)))
-                   (= 13 (aget a (- n 2))) (= 10 (aget a (- n 1))))
-            (String. a "UTF-8")
-            (if (> n 65536) (throw (ex-info "request head too large" {})) (recur))))))))
-
-(defn- read-exactly
-  [^java.io.InputStream in n]
-  (let [buf (java.io.ByteArrayOutputStream.)]
-    (loop [left n]
-      (if (zero? left)
-        (.toByteArray buf)
-        (let [chunk (byte-array (min 65536 left))
-              r (.read in chunk 0 (alength chunk))]
-          (when (neg? r) (throw (ex-info "eof in request body" {})))
-          (.write buf chunk 0 r)
-          (recur (- left r)))))))
-
-(defn- read-request
-  "A request off in: {:method :path :headers :body} — headers a lowercase-keyed
-   map, body the content-length bytes (or empty)."
-  [^java.io.InputStream in]
-  (let [head (read-head in)
-        lines (str/split-lines head)
-        [method path] (str/split (first lines) #" ")
-        headers (into {} (keep (fn [l] (let [i (.indexOf ^String l ":")]
-                                         (when (pos? i)
-                                           [(str/lower-case (subs l 0 i))
-                                            (str/trim (subs l (inc i)))])))
-                               (rest lines)))
-        len (parse-long (get headers "content-length" "0"))]
-    {:method method :path path :headers headers
-     :body (if (pos? len) (read-exactly in len) (byte-array 0))}))
-
-(def page-isolation-headers
-  "Cross-origin isolation for the served page: its in-mem tier is
-   SharedArrayBuffer-backed, and SAB is only defined on a
-   cross-origin-isolated page — without these headers the page
-   dies at boot (\"SharedArrayBuffer is not defined\"). The same
-   trio the Go media server sends."
-  [["Cross-Origin-Opener-Policy" "same-origin"]
-   ["Cross-Origin-Embedder-Policy" "require-corp"]
-   ["Cross-Origin-Resource-Policy" "same-origin"]])
-
-(defn- serve-file!
-  [^java.io.OutputStream out req file]
-  (let [f (fs/file file)
-        total (fs/size f)
-        range-h (get (:headers req) "range")
-        m (and range-h (re-matches #"bytes=(\d*)-(\d*)" range-h))
-        [start end] (if m
-                      [(if (= "" (nth m 1))
-                         (max 0 (- total (parse-long (nth m 2))))
-                         (parse-long (nth m 1)))
-                       (if (= "" (nth m 2))
-                         (dec total)
-                         (min (dec total) (parse-long (nth m 2))))]
-                      [0 (dec total)])
-        len (int (max 0 (inc (- end start))))
-        body (byte-array len)
-        _ (when (pos? len)
-            (with-open [raf (java.io.RandomAccessFile. f "r")]
-              (.seek raf (long start))
-              (.readFully raf body)))
-        ext (str/lower-case (or (fs/extension f) ""))
-        ctype (get page-mime ext "application/octet-stream")
-        head? (= "HEAD" (:method req))]
-    (if m
-      (http-answer! out "206 Partial Content" ctype body
-                    (into page-isolation-headers
-                          [["Content-Range" (str "bytes " start "-" end "/" total)]]) head?)
-      (http-answer! out "200 OK" ctype body page-isolation-headers head?))))
-
-(def ^:private http-client (delay (HttpClient/newHttpClient)))
-
-(defn- proxy!
-  "The page's rung traffic, forwarded to the gateway's port as-is. The gateway
-   not being up yet is a 503 — the page's rung clients retry."
-  [^java.io.OutputStream out req gateway-port]
-  (try
-    (let [hb (HttpRequest/newBuilder (URI/create (str "http://127.0.0.1:" gateway-port (:path req))))]
-      (doseq [k ["content-type" "authorization" "accept" "range"]
-              :let [v (get (:headers req) k)]
-              :when v]
-        (.header hb k v))
-      (.method hb (:method req) (HttpRequest$BodyPublishers/ofByteArray ^bytes (:body req)))
-      (let [resp (.send ^HttpClient @http-client (.build hb) (HttpResponse$BodyHandlers/ofByteArray))
-            body ^bytes (.body resp)
-            ;; presigned store URLs name the media server's origin (the gateway's :origin when a Go
-            ;; member runs); a page on THIS origin cannot fetch them (cross-origin: no CORS, CORP same-origin).
-            ;; Answered here, they are re-based on this origin (the request's Host), so the page — and its
-            ;; workers, which cannot resolve a relative URL — read /blobs/ through this proxy.
-            host (get (:headers req) "host")
-            body (if (and host (str/includes? (:path req) "/presign"))
-                   (.getBytes (str/replace (String. body "UTF-8")
-                                           #"http://127\.0\.0\.1:\d+/blobs/"
-                                           (str "http://" host "/blobs/"))
-                              "UTF-8")
-                   body)
-            headers (.headers resp)
-            rh (into [] (keep (fn [k] (let [v (.firstValue headers k)]
-                                        (when (.isPresent v) [k (.get v)])))
-                              ["content-type" "content-range" "accept-ranges"]))]
-        (http-answer! out (str (.statusCode resp) " X")
-                      (let [v (.firstValue headers "content-type")]
-                        (if (.isPresent v) (.get v) "application/octet-stream"))
-                      body rh (= "HEAD" (:method req)))))
-    (catch Throwable _
-      (http-answer! out "503 Service Unavailable" "text/plain"
-                    (.getBytes "the gateway is not up yet\n" "UTF-8") []
-                    (= "HEAD" (:method req))))))
-
-(defn- page-connection!
-  [page-dir out-dir gateway-port ^java.net.Socket sock]
-  (try
-    (with-open [in (.getInputStream sock)
-                out (.getOutputStream sock)]
-      (let [req (read-request in)
-            path (java.net.URLDecoder/decode
-                  (first (str/split (:path req) #"\?" 2)) "UTF-8")]
-        (cond
-          (or (str/starts-with? path "/gw/") (str/starts-with? path "/blobs/"))
-          (proxy! out req gateway-port)
-
-          (str/includes? path "..")
-          (http-answer! out "404 Not Found" "text/plain"
-                        (.getBytes "not found\n" "UTF-8") [] false)
-
-          :else
-          (let [rel (if (= path "/") "/index.html" path)
-                file (some (fn [dir]
-                             (let [f (fs/file dir (subs rel 1))]
-                               (when (and (fs/exists? f) (not (fs/directory? f))) f)))
-                           [page-dir out-dir])]
-            (if file
-              (serve-file! out req file)
-              (http-answer! out "404 Not Found" "text/plain"
-                            (.getBytes "not found\n" "UTF-8") [] false))))))
-    (catch Throwable _ nil)
-    (finally (try (.close sock) (catch Throwable _ nil)))))
-
-(defn serve-page!
-  "The boot program's own server for the run's page, on cfg's :page-port. Started
-   before the pools start any member, so the browser — which waits for
-   nothing — opens the app at the run's first second. Returns the socket; the
-   caller closes it at the run's end."
-  [run cfg]
-  (let [page-dir (:page cfg)
-        out-dir (:out run)
-        gateway-port (:gateway-port cfg)
-        ss (java.net.ServerSocket. (:page-port cfg) 50
-                                   (java.net.InetAddress/getByName "127.0.0.1"))]
-    (doto (Thread. (fn []
-                     (loop []
-                       (when-not (.isClosed ss)
-                         (try
-                           (let [sock (.accept ss)]
-                             (doto (Thread. (fn [] (page-connection! page-dir out-dir gateway-port sock)))
-                               (.setDaemon true)
-                               (.start)))
-                           (catch Throwable _ nil))
-                         (recur)))))
-      (.setDaemon true)
-      (.start))
-    (log "the page is served by the boot program on port" (:page-port cfg))
-    ss))
-
-(defn- http-get-string
-  "GET url's body as a string (the CDP driver's /json/list). The request carries a timeout: a peer
-   that accepts and never answers (a wedged browser, a mediating sandbox) must fail this call, not
-   park the run's main thread past every outer budget — the old launcher's client failed such a
-   fetch fast, where java.net.http's send waits forever."
-  [url]
-  (let [req (.build (-> (HttpRequest/newBuilder (URI/create url))
-                        (.timeout (java.time.Duration/ofSeconds 15))))]
-    (String. ^bytes (.body (.send ^HttpClient @http-client req (HttpResponse$BodyHandlers/ofByteArray))) "UTF-8")))
-
-(defn- cdp-screenshot!
-  "A screenshot of url into shot, taken once the page's table holds n rows (or after timeout-ms): headless Chromium
-   driven over the DevTools protocol. (A fixed --virtual-time-budget raced the page: its workers read the library over
-   the network rung while virtual time ran on, and the shot caught an empty table.) Answers the rows it saw."
-  [url shot n timeout-ms]
-  (let [dir (str (fs/create-temp-dir {:prefix "cohost-media-shot-"}))
-        proc (p/process {:out :string :err :string} (:chrome tools)
-                        "--headless=new" "--no-sandbox" "--disable-gpu"
-                        "--no-proxy-server" "--hide-scrollbars"
-                        (str "--user-data-dir=" dir) "--window-size=1400,1100"
-                        "--remote-debugging-port=0" "about:blank")
-        port-file (str (fs/path dir "DevToolsActivePort"))]
-    (try
-      (let [port (loop [i 0]
-                   (cond
-                     (and (fs/exists? port-file)
-                          (seq (str/trim (slurp port-file))))
-                     (first (str/split-lines (slurp port-file))) (< i 200)
-                     (do
-                       (Thread/sleep 100)
-                       (recur (inc i)))
-                     :else
-                     (throw (ex-info "Chromium opened no DevTools port" {}))))
-            targets (json/read-str (http-get-string (str "http://127.0.0.1:" port "/json/list"))
-                                   :key-fn keyword)
-            ws-url (:webSocketDebuggerUrl (first (filter (fn [t]
-                                                           (= "page" (:type t)))
-                                                         targets)))
-            pending (atom {})
-            ids (atom 0)
-            ;; (a large reply — the screenshot — arrives in parts: a message is whole at its last part)
-            part (StringBuilder.)
-            listener (reify WebSocket$Listener
-                       (onOpen [_ ws] (.request ws 1) nil)
-                       (onText [_ ws data last?]
-                         (.append part (str data))
-                         (when last?
-                           (let [m (json/read-str (str part) :key-fn keyword)]
-                             (.setLength part 0)
-                             (when-let [pr (get @pending (:id m))]
-                               (deliver pr m))))
-                         (.request ws 1)
-                         nil)
-                       (onError [_ _ws _err] nil))
-            ^WebSocket sock (.join (.buildAsync (.newWebSocketBuilder ^HttpClient @http-client)
-                                                (URI/create ws-url) listener))
-            call (fn [method params]
-                   (let [id (clojure.core/swap! ids inc)
-                         pr (promise)]
-                     (clojure.core/swap! pending assoc id pr)
-                     (.sendText sock (json/write-str {:id id
-                                                      :method method
-                                                      :params params}) true)
-                     (let [r (deref pr 30000 nil)]
-                       (clojure.core/swap! pending dissoc id)
-                       (:result r))))
-            rows (fn []
-                   (or (get-in (call "Runtime.evaluate"
-                                     {:expression "document.querySelectorAll('tbody tr').length"
-                                      :returnByValue true}) [:result :value]) 0))
-            _ (call "Page.navigate" {:url url})
-            t0 (now)
-            seen (loop []
-                   (let [r (rows)]
-                     (if (or (>= r n) (> (- (now) t0) timeout-ms))
-                       r
-                       (do
-                         (Thread/sleep 500)
-                         (recur)))))]
-        ;; (the thumbnails load after their rows)
-        (Thread/sleep 1500)
-        (when-let [png (:data (call "Page.captureScreenshot" {:format "png"}))]
-          (fs/write-bytes shot
-                          (.decode (java.util.Base64/getDecoder) ^String png)))
-        (.sendClose sock WebSocket/NORMAL_CLOSURE "done")
-        seen)
-      (finally (p/destroy-tree proc)))))
+   (defn- cdp-screenshot!
+     "A screenshot of url into shot, taken once the page's table holds n rows (or after timeout-ms): headless Chromium
+      driven over the DevTools protocol. (A fixed --virtual-time-budget raced the page: its workers read the library over
+      the network rung while virtual time ran on, and the shot caught an empty table.) Answers the rows it saw."
+     [url shot n timeout-ms]
+     (let [dir (str (fs/create-temp-dir {:prefix "cohost-media-shot-"}))
+           proc (p/process {:out :string :err :string} (:chrome tools)
+                           "--headless=new" "--no-sandbox" "--disable-gpu"
+                           "--no-proxy-server" "--hide-scrollbars"
+                           (str "--user-data-dir=" dir) "--window-size=1400,1100"
+                           "--remote-debugging-port=0" "about:blank")
+           port-file (str (fs/path dir "DevToolsActivePort"))]
+       (try
+         (let [port (loop [i 0]
+                      (cond
+                        (and (fs/exists? port-file)
+                             (seq (str/trim (slurp port-file))))
+                        (first (str/split-lines (slurp port-file))) (< i 200)
+                        (do
+                          (proc/sleep-ms! 100)
+                          (recur (inc i)))
+                        :else
+                        (throw (ex-info "Chromium opened no DevTools port" {}))))
+               targets (json/read-str (http-get-string (str "http://127.0.0.1:" port "/json/list"))
+                                      :key-fn keyword)
+               ws-url (:webSocketDebuggerUrl (first (filter (fn [t]
+                                                              (= "page" (:type t)))
+                                                            targets)))
+               pending (atom {})
+               ids (atom 0)
+               ;; (a large reply — the screenshot — arrives in parts: a message is whole at its last part)
+               part (StringBuilder.)
+               listener (reify WebSocket$Listener
+                          (onOpen [_ ws] (.request ws 1) nil)
+                          (onText [_ ws data last?]
+                            (.append part (str data))
+                            (when last?
+                              (let [m (json/read-str (str part) :key-fn keyword)]
+                                (.setLength part 0)
+                                (when-let [pr (get @pending (:id m))]
+                                  (deliver pr m))))
+                            (.request ws 1)
+                            nil)
+                          (onError [_ _ws _err] nil))
+               ^WebSocket sock (.join (.buildAsync (.newWebSocketBuilder ^HttpClient @http-client)
+                                                   (URI/create ws-url) listener))
+               call (fn [method params]
+                      (let [id (clojure.core/swap! ids inc)
+                            pr (promise)]
+                        (clojure.core/swap! pending assoc id pr)
+                        (.sendText sock (json/write-str {:id id
+                                                         :method method
+                                                         :params params}) true)
+                        (let [r (deref pr 30000 nil)]
+                          (clojure.core/swap! pending dissoc id)
+                          (:result r))))
+               rows (fn []
+                      (or (get-in (call "Runtime.evaluate"
+                                        {:expression "document.querySelectorAll('tbody tr').length"
+                                         :returnByValue true}) [:result :value]) 0))
+               _ (call "Page.navigate" {:url url})
+               t0 (now)
+               seen (loop []
+                      (let [r (rows)]
+                        (if (or (>= r n) (> (- (now) t0) timeout-ms))
+                          r
+                          (do
+                            (proc/sleep-ms! 500)
+                            (recur)))))]
+           ;; (the thumbnails load after their rows)
+           (proc/sleep-ms! 1500)
+           (when-let [png (:data (call "Page.captureScreenshot" {:format "png"}))]
+             (fs/write-bytes shot
+                             (.decode (java.util.Base64/getDecoder) ^String png)))
+           (.sendClose sock WebSocket/NORMAL_CLOSURE "done")
+           seen)
+         (finally (p/destroy-tree proc)))))
+     ))
 
 (defn browser-check!
-  "Wait (up to timeout-ms) for the page's check (the browser member, started with ?check=f01:thumb, writes it into
-   control :page-check); then a screenshot of the page (?runtime=0: a view only, no second browser runtime), once its
-   table shows every file of the library."
+  "Wait (up to timeout-ms) for the page's check (the app page in the browser seat's shell iframe, whose URL
+   carries ?check=<page-check>, writes it into control :page-check); then a screenshot of the page
+   (?runtime=0: a view only, no second browser runtime), once its table shows every file of the library."
   [run atoms cfg timeout-ms]
-  (let [t0 (now)
-        got (loop []
-              (or (:page-check @(:control atoms))
-                  (when (< (- (now) t0) timeout-ms) (Thread/sleep 500) (recur))))
-        shot (str (fs/path (:dir run) "page.png"))
-        n (count (:files @(:library atoms)))
-        [ok? seen] (try
-                     [true
-                      (cdp-screenshot! (str "http://127.0.0.1:"
-                                            (:page-port cfg)
-                                            "/index.html?runtime=0") shot n
-                                       60000)]
-                     (catch Exception e [false (ex-message e)]))]
-    (log "browser check" (if got "received" "NOT received") "screenshot" shot
-         (if ok? (str seen " of " n " rows") (str "failed: " seen)))
-    (assoc (or got {:ok false}) :screenshot (when (fs/exists? shot) shot)
-           :screenshot-rows (when ok? seen))))
+  #?(:clj
+     (let [t0 (now)
+           got (loop []
+                 (or (:page-check @(:control atoms))
+                     (when (< (- (now) t0) timeout-ms) (proc/sleep-ms! 500) (recur))))
+           shot (str (fs/path (:dir run) "page.png"))
+           n (count (:files @(:library atoms)))
+           [ok? seen] (try
+                        [true
+                         (cdp-screenshot! (str "http://127.0.0.1:"
+                                               (:page-port cfg)
+                                               "/index.html?runtime=0") shot n
+                                          60000)]
+                        (catch Exception e [false (ex-message e)]))]
+       (log "browser check" (if got "received" "NOT received") "screenshot" shot
+            (if ok? (str seen " of " n " rows") (str "failed: " seen)))
+       (assoc (or got {:ok false}) :screenshot (when (fs/exists? shot) shot)
+              :screenshot-rows (when ok? seen)))
+     :cljs (throw (ex-info "start: the browser check runs on the boot seat" {}))))
 
 (defn- newest
   "The newest modification time (ms) of the Clojure sources under dirs."
@@ -1039,8 +1005,8 @@
    transcoder reads (src/cohost_media/av_jolt.clj) — in EVE_FFMPEG_LIB, Homebrew's and MacPorts' lib directories
    on macOS, the loader's cache (ldconfig -p) on Linux."
   []
-  (let [mac? (str/includes? (str/lower-case (System/getProperty "os.name")) "mac")
-        dirs (concat (keep not-empty [(System/getenv "EVE_FFMPEG_LIB")])
+  (let [mac? (str/includes? (str/lower-case (getprop "os.name")) "mac")
+        dirs (concat (keep not-empty [(getenv "EVE_FFMPEG_LIB")])
                      (when mac? ["/opt/homebrew/lib" "/usr/local/lib" "/opt/local/lib"]))
         cache (when-not mac?
                 (str (:out (p/shell {:continue true :out :string :err :string} "sh" "-c"
@@ -1056,7 +1022,7 @@
    run every member."
   [hosts]
   (let [hosts (set hosts)
-        os (str/lower-case (System/getProperty "os.name"))
+        os (str/lower-case (getprop "os.name"))
         linux? (str/includes? os "linux")
         on-path? (fn [c] (some? (fs/which c)))
         ffmpeg? (on-path? "ffmpeg")
@@ -1095,7 +1061,7 @@
 (defn- how
   "What bb cohost-media setup does for a failing check (Homebrew's where there is one, or on macOS), or nil."
   [{:keys [brew cask]}]
-  (let [brew? (or (some? (fs/which "brew")) (str/includes? (str/lower-case (System/getProperty "os.name")) "mac"))]
+  (let [brew? (or (some? (fs/which "brew")) (str/includes? (str/lower-case (getprop "os.name")) "mac"))]
     (cond (and brew? brew) (str "brew install " (str/join " " brew))
           (and brew? cask) (str "brew install --cask " cask))))
 
@@ -1201,7 +1167,7 @@
                      (> (- (now) t0) 30000) nil
                      :else
                      (do
-                       (Thread/sleep 200)
+                       (proc/sleep-ms! 200)
                        (recur))))
             ok? (and seen (wait-complete! run atoms procs state timeout-ms))
             e (get-in @(:library atoms) [:files dest])]
@@ -1250,7 +1216,6 @@
         atoms (domain/open-atoms (:base run))
         cfg (configure! run atoms hosts media-dir)
         page? (prepare-page! run cfg)
-        page-srv (when page? (serve-page! run cfg))
         procs (atom {})
         state (atom {})]
     (try
@@ -1309,8 +1274,7 @@
           (read-line))
         report)
       (finally
-        (stop-members! atoms procs)
-        (when page-srv (try (.close ^java.net.ServerSocket page-srv) (catch Throwable _ nil)))))))
+        (stop-members! atoms procs)))))
 
 (defn demo-media!
   "The demo's ten files (generated once into ~/.cohost-media/demo-media): their directory."
@@ -1393,42 +1357,40 @@
                                                       :ran-on :checksums :page :drop])])
                                  reports))}
         f (str (fs/path (fs/home) ".cohost-media"
-                        (str "verify-" (str/replace (str (java.time.LocalDateTime/now)) #"[:.]" "-") ".edn")))]
+                        (str "verify-" (str/replace (stamp-now) #"[:.]" "-") ".edn")))]
     (spit f (pr-str out))
     (log "verify" (if (:ok out) "PASSED" "FAILED") f)
     (println (pr-str (select-keys out [:ok :rows :run-checks])))
     out))
 
-(defn -main [& [cmd & args]]
+(defn dispatch
+  "The boot program's commands, as the host entry (cohost-media.boot's -main) calls them:
+   answers the exit code the entry exits with. What this machine lacks is thrown as ex-info
+   with :missing/:unready data — the entry prints that message alone, no stack trace."
+  [cmd args]
   (let [opts (parse-opts args)]
-    (try
     (case cmd
       "demo"
       (let [r (run-library! (assoc opts :stay true) (demo-media!))]
-        (System/exit (if (:ok r) 0 1)))
+        (if (:ok r) 0 1))
       "scan"
       (let [r (run-library! (assoc opts :stay true) (str (fs/absolutize (first (:args opts)))))]
-        (System/exit (if (:ok r) 0 1)))
+        (if (:ok r) 0 1))
       "verify"
       (let [r (verify! opts)]
-        (System/exit (if (:ok r) 0 1)))
+        (if (:ok r) 0 1))
       "setup"
       ;; what the runs named (--only, verify's) or the hosts need: installed where it can be
       (let [hosts (if-let [only (some-> (:only opts) (str/split #",") set)]
                     (distinct (mapcat :hosts (filter #(only (:name %)) verify-runs)))
                     (or (:hosts opts) default-hosts))]
-        (System/exit (if (empty? (setup! hosts)) 0 1)))
+        (if (empty? (setup! hosts)) 0 1))
       "build"
       (do
         (ensure-built! default-hosts true)
-        (System/exit 0))
+        0)
       (do
         (println "usage: bb cohost-media demo|scan <dir>|verify|setup|build [--hosts h,...]"
                  "[--kill transcode|coordinator] [--no-browser] [--headless] [--only run,...]"
                  "[--install]")
-        (System/exit 2)))
-    ;; what this machine lacks: the message alone, no stack trace
-    (catch clojure.lang.ExceptionInfo e
-      (if (let [d (ex-data e)] (and (map? d) (or (:unready d) (:missing d))))
-        (do (binding [*out* *err*] (println (ex-message e))) (System/exit 1))
-        (throw e))))))
+        2))))

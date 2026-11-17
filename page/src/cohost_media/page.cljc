@@ -17,17 +17,21 @@
 
    ?check=<file-id>:<kind> — the done bar's row: once the index is complete, re-queue that job, watch it to :done, and
    write what the page saw into cohost-media/control (:page-check), where the launcher reads it."
-  (:require [clojure.string :as str]
-            [eve.process :as proc]
-            [eve.thread :as t]
-            [eve.thread-host :as h]
-            [eve.thread.domain :as dom]
-            [eve.thread.meta :as mt]
-            [eve.thread.net :as tn]
-            [eve.thread.rung :as rung]
-            [cohost-media.core :as em]
-            [cohost-media.tasks :as tasks]
-            [reagami.core :as reagami]))
+  ;; one codebase, written in cljc like the rest of the app: the
+  ;; libraries this namespace uses are cljs-side (eve's browser stack,
+  ;; reagami), so they are required under :cljs and the clj side
+  ;; requires none
+  #?@(:cljs [(:require [clojure.string :as str]
+                        [eve.process :as proc]
+                        [eve.thread :as t]
+                        [eve.thread-host :as h]
+                        [eve.thread.domain :as dom]
+                        [eve.thread.meta :as mt]
+                        [eve.thread.net :as tn]
+                        [eve.thread.rung :as rung]
+                        [cohost-media.core :as em]
+                        [cohost-media.tasks :as tasks]
+                        [reagami.core :as reagami])]))
 
 (defn- now [] (js/Date.now))
 
@@ -242,7 +246,7 @@
 ;; The feed: every step the page sees, newest first
 ;; ---------------------------------------------------------------------------
 
-(defn- clock [] (.toLocaleTimeString (js/Date.) js/undefined #js {:hour12 false}))
+(defn- clock [] (.toLocaleTimeString (js/Date.) js/undefined (js-obj "hour12" false)))
 
 (defn- feed! [events]
   (when (seq events)

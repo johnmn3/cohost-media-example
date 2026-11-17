@@ -36,16 +36,25 @@ To choose the pools: `bb demo --hosts bb,jvm,glj,node,browser`.
 
 ## Layout
 
-- `src/cohost_media/boot.clj` — the one boot program (JVM Clojure, the only
-  main): preflight, builds, pool configs as data, the run's supervisor.
+Every app file is `.cljc` — the same sources read on every runtime; the few
+JS-specific deps host out to the browser runtime through reader conditionals.
+
+- `src/cohost_media/boot.cljc` — the host entry (the only main): installs
+  this seat's cohost adapter and calls the program.
+- `src/cohost_media/start.cljc` — the boot program itself: preflight, builds,
+  pool configs as data, the run's supervisor. All runtime starting is thread
+  starting here, on cohost — the browser member included: it starts as a
+  cohost browser thread, which also serves the library page and the
+  gateway's endpoints.
 - `src/cohost_media/member.cljc` — the member every runtime runs: attach to
   the job atom, claim by capability, renew the lease, complete.
 - `src/cohost_media/tasks.cljc` — the job vocabulary, shared by all runtimes;
   the work itself lives in the facility namespaces beside it (`work.cljc`,
-  `media.cljc`, `av.cljc`, `meta.clj`, …) — plain `clojure.*` calls; Eve
+  `media.cljc`, `av.cljc`, `meta.cljc`, …) — plain `clojure.*` calls; Eve
   arrives through the cohost surface, not by calling into Eve.
-- `page/` — the library page (ClojureScript); its workers are a pool too.
-- `node/` — the Node member's entry point (compiled ClojureScript).
+- `page/` — the library page (one `.cljc` file); its workers are a pool too.
+- `node/` — the Node member's entry point (a `.cljc` file, compiled
+  ClojureScript on that seat).
 - `glj/build.sh` — builds the glojure member's binary; it is Eve's own
   glojure build, nothing added.
 - `deps.edn` — the app's Maven deps only. Eve and cohost are pinned in

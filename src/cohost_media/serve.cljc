@@ -43,7 +43,9 @@
 (defn start-gateway!
   "Serve domain's atoms and the store on 127.0.0.1:port. origin: the origin the clients reach the gateway
    (origin/gw) and the store (origin/blobs/) through — the gateway's own port when it serves the store itself
-   (the capstone's use), or a fronting server's that proxies both. {:port :stop :gateway}."
+   (the capstone's use), or a fronting server's that proxies both. {:port :stop :gateway :blobs
+   :handler} — :handler is the dispatch itself, for a caller serving the same endpoints
+   in-process (the browser seat: cohost-media.gateway/seat-handler)."
   [domain {:keys [port origin domain-id api-key store-secret]}]
   (let [store-url (str origin "/blobs/")
         blobs (atom {})
@@ -52,9 +54,9 @@
                               :presign (gw/hmac-presigner {:url store-url :secret store-secret :now-ms proc/now-ms})
                               :platform {:request store}
                               :deny tn/hello-over-disk-only})
-        srv (hs/serve! {:port port :threads 8}
-                       (fn [req]
-                         (cond (str/includes? (:url req) "/blobs/") (store req)
-                               (str/includes? (:url req) "/v1/domains/") ((:handle g) req)
-                               :else {:status 404 :headers {} :body "not found"})))]
-    (assoc srv :gateway g :blobs blobs)))
+        handler (fn [req]
+                  (cond (str/includes? (:url req) "/blobs/") (store req)
+                        (str/includes? (:url req) "/v1/domains/") ((:handle g) req)
+                        :else {:status 404 :headers {} :body "not found"}))
+        srv (hs/serve! {:port port :threads 8} handler)]
+    (assoc srv :gateway g :blobs blobs :handler handler)))

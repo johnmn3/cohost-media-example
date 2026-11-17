@@ -9,9 +9,15 @@
    cohost-media.meta (metadata, a JVM facility resolved lazily — only a :meta-capped member runs
    it). Perceptual hashes and EBU R128 loudness are plain Clojure over an ffmpeg frame and the PCM
    window region. The npm tasks (thumb/sheet/tags) are ClojureScript — their bodies are the :cljs
-   arms, run by the Node member; each answers a promise the member's pump settles."
+   arms, run by the Node member; each answers a promise the member's pump settles. The browser
+   member's waveform task and its workers' way to the domain (this origin's config, the gateway's
+   network rungs) are the last section: they lived in the page's own tasks file while the page's
+   sources were .cljs — a second file of this same name, which the page build's extension
+   precedence silently preferred — and moved here when the page's sources became .cljc, so the
+   namespace has one home again."
   (:refer-clojure :exclude [meta])
-  (:require [eve.thread :as t]
+  (:require [clojure.string :as str]
+            [eve.thread :as t]
             [cohost-media.av :as av]
             [cohost-media.core :as em]
             [cohost-media.media :as media]
@@ -21,7 +27,9 @@
                       [cohost-media.r128 :as r128]
                       [eve.mem :as mem]
                       [eve.region :as region]]
-                :cljs [])))
+                :cljs [[eve.net.platform :as platform]
+                       [eve.thread.net :as tn]
+                       [eve.thread.rung :as rung]])))
 
 (t/deftask index [job] (work/index! job))
 
@@ -85,12 +93,16 @@
 
 #?(:cljs
    (do
-     (def ^:private sharp (js/require "sharp"))
-     (def ^:private mm (js/require "music-metadata"))
-     (def ^:private cp (js/require "child_process"))
-     (def ^:private node-fs (js/require "fs"))
-     (def ^:private node-path (js/require "path"))
-     (def ^:private node-os (js/require "os"))
+     ;; the Node member's facilities, bound only where a require
+     ;; exists: every runtime loads this namespace whole, the browser
+     ;; included, and a browser has no require to call (on the Node
+     ;; member these bind exactly as they always have)
+     (def ^:private sharp (when (exists? js/require) (js/require "sharp")))
+     (def ^:private mm (when (exists? js/require) (js/require "music-metadata")))
+     (def ^:private cp (when (exists? js/require) (js/require "child_process")))
+     (def ^:private node-fs (when (exists? js/require) (js/require "fs")))
+     (def ^:private node-path (when (exists? js/require) (js/require "path")))
+     (def ^:private node-os (when (exists? js/require) (js/require "os")))
 
      (defn- ^js image [x] (sharp x))
 
@@ -151,3 +163,55 @@
                                               :sample-rate (.-sampleRate f) :channels (.-numberOfChannels f)
                                               :title (.-title c) :artist (.-artist c)})))))
      :default (throw (ex-info "tags is an npm task" {}))))
+
+;; ---------------------------------------------------------------------------
+;; The browser member: what its workers need to reach the domain, and its
+;; waveform task. (The page's own caps are pool-config data, as every
+;; member's are; the old page tasks file's (def caps #{:browser}) had no
+;; remaining consumer and did not move.)
+;; ---------------------------------------------------------------------------
+
+#?(:cljs
+   (do
+     (defn fetch-config
+       "This origin's config.json (the domain id and api key the launcher minted, the run's directories): read by the page
+  and by every worker (a worker's location is its bootstrap's blob URL, so the origin is named)."
+       []
+       (let [xhr (js/XMLHttpRequest.)]
+         (.open xhr "GET" (str (.-origin js/location) "/config.json") false)
+         (.send xhr nil)
+         (js->clj (js/JSON.parse (.-responseText xhr)) :keywordize-keys true)))
+
+     (defn net-cfg [{:keys [domain_id api_key]}]
+       {:endpoint (str (.-origin js/location) "/gw") :domain-id domain_id :api-key api_key})
+
+     (defonce ^:private worker-ctx (atom nil))
+
+     (defn ctx
+       "This worker's view of the domain: its config, its platform and the library's network rung, opened once per worker."
+       []
+       (or @worker-ctx
+           (let [cfg (fetch-config)
+                 p (platform/platform)]
+             (reset! worker-ctx {:cfg cfg :p p :library (tn/rung (net-cfg cfg) em/library-name p)}))))
+
+     (defn- fmt [x] (/ (js/Math.round (* 100 x)) 100))))
+
+(t/deftask waveform
+  "The waveform of a file's audio, drawn in the browser: the loudness job's peaks (0..1, one per hundredth of the
+  file) as the points of a mirrored polygon in a 100×20 box, written into the library."
+  [{:keys [path]}]
+  #?(:cljs
+     (do (js/console.log "cohost-media waveform:" path)
+         (let [{:keys [library]} (ctx)
+               peaks (get-in (rung/value library) [:files path :results :loudness :waveform])
+               v (if (seq peaks)
+                   (let [n (count peaks)
+                         x (fn [i] (fmt (* 100 (/ i (max 1 (dec n))))))
+                         top (map-indexed (fn [i p] (str (x i) "," (fmt (- 10 (* 10 p))))) peaks)
+                         bottom (reverse (map-indexed (fn [i p] (str (x i) "," (fmt (+ 10 (* 10 p))))) peaks))]
+                     {:points (str/join " " (concat top bottom)) :peaks n :drawn-by "browser"})
+                   {:none true :drawn-by "browser"})]
+           (rung/-swap! library (fn [lib] (assoc-in lib [:files path :results :waveform] v)))
+           v))
+     :default (throw (ex-info "waveform is the browser's task" {}))))
