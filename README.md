@@ -53,9 +53,11 @@ JS-specific deps host out to the browser runtime through reader conditionals.
   `media.cljc`, `av.cljc`, `meta.cljc`, …) — plain `clojure.*` calls; Eve
   arrives through the cohost surface, not by calling into Eve.
 - `page/` — the library page (one `.cljc` file); its workers are a pool too.
-- `node/` — the Node member's entry point (a `.cljc` file, compiled
-  ClojureScript on that seat).
-- `glj/build.sh` — builds the glojure member's binary; it is Eve's own
-  glojure build, nothing added.
 - `deps.edn` — the app's Maven deps only. Eve and cohost are pinned in
   `bb.edn`'s setup task.
+
+There are no per-runtime folders: the Node member is a cohost `:node`
+thread the boot program starts (the shared member code, evaluated in a
+Node realm with the app's npm packages in reach), and the glojure
+member's binary is Eve's own glojure build, which the boot program
+invokes directly.

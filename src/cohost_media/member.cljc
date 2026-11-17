@@ -17,7 +17,9 @@
             [eve.atom :as ea]
             [eve.process :as proc]
             [eve.thread.domain :as dom]
+            [eve.thread.meta :as mt]
             [eve.thread.rung :as rung]
+            [eve.thread.task :as task]
             [cohost-media.core :as em]
             [cohost-media.coordinator :as coord]
             [cohost-media.domain :as domain]
@@ -131,6 +133,77 @@
           ;; and the coordinator's pass runs at 1 Hz)
           (proc/sleep-ms! (or (:poll-ms options) 1000))
           (recur stop-cache))))))
+
+;; ---------------------------------------------------------------------------
+;; The node member's life, in a cohost :node realm (cohost-media.start starts
+;; the seat and calls node-serve! there): the same member on Node's event loop
+;; instead of on a thread. Attach with :threads false (an eve.thread pump
+;; thread would be a worker isolate, and npm's libraries are already off the
+;; main thread), pull the :npm pool — claim (a swap), run the task (a promise:
+;; sharp and music-metadata are asynchronous), complete (a swap) — and renew
+;; the lease every ttl/4. Stop is the control atom's :stop, seen by the pump:
+;; clear the beat, detach, and node-state reads :stopped — never
+;; js/process.exit; the seat owns the realm process and its close! ends it.
+;; (The node member's former standalone main, folded in here when the node/
+;; folder went: the member is one namespace on every seat. Never the
+;; coordinator — the boot program names the coordinator, and it is never
+;; this one.)
+
+#?(:cljs
+   (do
+     (defonce ^:private node-life (atom :starting))
+
+     (defn node-state
+       "The node member's life, as the boot program's watch reads it:
+        :starting, :running, :stopped."
+       []
+       @node-life)
+
+     (defn- node-error-data [e] {:class "js/Error" :message (or (.-message e) (str e))})
+
+     (defn- node-run-claimed
+       "x's task called with its arguments: a promise of its value."
+       [x]
+       (let [{:keys [task args]} (:work x)]
+         (js/Promise.resolve (apply (task/task-fn task) args))))
+
+     (defn node-serve!
+       "Join the domain at base and pull the :npm pool until :stop (see the
+        section comment). config is the member's pool config, as data — the
+        same table serve! takes. Answers :installed: the member's life runs
+        on the realm's timers from here, and node-state reports it."
+       [base out window rid config]
+       (let [caps (:caps config)
+             atoms (domain/open-atoms base)
+             dh (dom/attach! (:jobs atoms) {:rid rid :ttl em/ttl :caps (vec caps) :threads false})
+             tid "main"]
+         (reset! st/ctx (merge atoms {:dh dh :rid rid :base base :out out :window window}))
+         (doseq [nm em/pools] (dom/pool dh nm {:retry :restart}))
+         (dom/swap-meta! dh (fn [v] [(mt/thread-up v rid tid) nil]))
+         (swap! (:control atoms) assoc-in [:members rid :joined] true)
+         (reset! node-life :running)
+         (say {:step :joined :caps caps :pools [:npm] :coordinator false})
+         (let [beat (js/setInterval (fn [] (dom/beat! dh [tid] {} 0)) (quot em/ttl 4))
+               stop! (fn []
+                       (js/clearInterval beat)
+                       (say {:step :stopping})
+                       (dom/detach! dh)
+                       (reset! node-life :stopped)
+                       (say {:step :stopped}))]
+           (letfn [(pump []
+                     (if (:stop @(:control atoms))
+                       (stop!)
+                       (let [{:keys [claimed]} (dom/claim! dh :npm tid 1)]
+                         (if-let [x (first claimed)]
+                           (-> (node-run-claimed x)
+                               (.then (fn [v] (dom/complete! dh (:id x) (:claim x) true v)))
+                               (.catch (fn [e]
+                                         (say {:step :task-failed :id (:id x) :error (node-error-data e)})
+                                         (dom/complete! dh (:id x) (:claim x) false (node-error-data e))))
+                               (.finally (fn [] (js/setTimeout pump 0))))
+                           (js/setTimeout pump 100)))))]
+             (pump)))
+         :installed))))
 
 (defn -main [& [base out window rid a b c]]
   ;; the boot program's shape: [base out window rid config-edn gateway api-key]; a caller of the

@@ -3,16 +3,16 @@
              [babashka.process :as p])
 
   setup {:doc "Fetch the two pinned dependencies as sibling checkouts (eve/, cohost.cljc/) and sync this app into the Eve tree at eve/capstone/cohost-media, where its boot program expects it."
-         :task (let [eve-sha "e6cddc906da3620b912287f30046ffb67058ac4e"
-                     cohost-sha "ed0020071e4a3880ec506d96661056fcd16ac8be"
+         :task (let [eve-sha "39403c49e8eccbe94fc2f8acf53d4fa03b23b550"
+                     cohost-sha "a80a5595b2a18fdb6fc244a4e8ae70895b278e7e"
                      ensure (fn [dir url sha]
                               (when-not (fs/exists? dir)
                                 (p/shell "git" "clone" url dir))
                               (p/shell {:dir dir} "git" "fetch" "origin")
                               (p/shell {:dir dir} "git" "checkout" sha))]
-                 (ensure "eve" "https://github.com/SeniorCareMarket/eve.git" eve-sha)
+                 (ensure "eve" "https://github.com/johnmn3/atom.broker.git" eve-sha)
                  (ensure "cohost.cljc" "https://github.com/johnmn3/cohost.cljc.git" cohost-sha)
-                 (doseq [e ["src" "page" "node" "glj" "deps.edn" "package.json" "package-lock.json"]
+                 (doseq [e ["src" "page" "deps.edn" "package.json" "package-lock.json"]
                          :let [dest (fs/path "eve" "capstone" "cohost-media" e)]]
                    (when (fs/exists? dest)
                      (if (fs/directory? dest) (fs/delete-tree dest) (fs/delete dest)))
