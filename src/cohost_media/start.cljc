@@ -199,6 +199,11 @@
                      "cohost-media.member"]
                     args
                     [config])
+       ;; a neutral working directory, as the probe's: jolt resolves its project from the
+       ;; working directory and eve's bb.edn breaks that read (see jolt-probe) — launched
+       ;; from the tree root the member would die in jolt's read-bb-file before loading.
+       ;; Every path the member needs is absolute (the -Scp roots, the run's arguments).
+       :dir (str (fs/temp-dir))
        :env (cond-> {"PATH" (:path tools)} (:jolt-chez tools) (assoc "JOLT_CHEZ" (:jolt-chez tools)))})))
 
 (def default-hosts
@@ -1067,11 +1072,18 @@
    where it is a source tree's) at the resolved jolt path — {:jolt :exit :out :err}, the output as
    the probe left it. nil when there is no executable jolt to probe. Kept whole because a bare
    false cannot say what was seen: a jolt that answers wrong, one that dies on a missing library,
-   and no jolt at all are three different fixes, and the failure line (jolt-probe-note) reads this."
+   and no jolt at all are three different fixes, and the failure line (jolt-probe-note) reads this.
+   The probe runs from a neutral working directory (the temp dir), never the tree's root: jolt
+   resolves its project from the working directory and eve's bb.edn breaks that read — jolt's
+   deps.edn canonicalize walk dies inside the bb.edn task data (kv-reduce on a Long, in
+   jolt.deps.edn/canonicalize via read-bb-file), so a healthy jolt probed from the eve root
+   exits 1 while the same binary in a terminal prints 3 (measured on hatch and on John's Mac,
+   2026-11-17). The jolt member below launches from the same neutral ground for the same reason."
   (memoize
    (fn [jolt chez]
      (when (and jolt (fs/executable? jolt))
        (let [{:keys [exit out err]} (p/shell {:continue true :out :string :err :string
+                                              :dir (str (fs/temp-dir))
                                               :extra-env (cond-> {"PATH" (:path tools)} chez (assoc "JOLT_CHEZ" chez))}
                                              jolt "-e" "(+ 1 2)")]
          {:jolt jolt :exit exit :out (str out) :err (str err)})))))
