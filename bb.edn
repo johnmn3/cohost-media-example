@@ -3,14 +3,14 @@
              [babashka.process :as p])
 
   setup {:doc "Fetch the two pinned dependencies as sibling checkouts (eve/, cohost.cljc/) and sync this app into the Eve tree at eve/capstone/cohost-media, where its boot program expects it."
-         :task (let [eve-sha "291733f894f273f618cb8982cc42c49dfef99992"
-                     cohost-sha "d5abd648589ded50f4816f3ae02453619ea0fb7c"
+         :task (let [eve-sha "cd1e649e0f501a3e442e2c0b24c8155a6c5b4974"
+                     cohost-sha "30c3458f857ed2efb2bd5c5eaa0f435edaf18ac2"
                      ensure (fn [dir url sha]
                               (when-not (fs/exists? dir)
                                 (p/shell "git" "clone" url dir))
                               (p/shell {:dir dir} "git" "fetch" "origin")
                               (p/shell {:dir dir} "git" "checkout" sha))]
-                 (ensure "eve" "https://github.com/johnmn3/atom.broker.git" eve-sha)
+                 (ensure "eve" "https://github.com/SeniorCareMarket/eve.git" eve-sha)
                  (ensure "cohost.cljc" "https://github.com/johnmn3/cohost.cljc.git" cohost-sha)
                  (doseq [e ["src" "page" "deps.edn" "package.json" "package-lock.json"]
                          :let [dest (fs/path "eve" "capstone" "cohost-media" e)]]
