@@ -3,7 +3,7 @@
              [babashka.process :as p])
 
   setup {:doc "Fetch the two pinned dependencies as sibling checkouts (eve/, cohost.cljc/) and sync this app into the Eve tree at eve/capstone/cohost-media, where its boot program expects it."
-         :task (let [eve-sha "294209ba11b3635ca27bca19c1c4156fa6c90514"
+         :task (let [eve-sha "9e97a0b73f754f9a0060769028370e1e14712290"
                      cohost-sha "0277045cd981b2c7e5c41e7d66ecd31e7665dcb4"
                      ensure (fn [dir url sha]
                               (when-not (fs/exists? dir)
