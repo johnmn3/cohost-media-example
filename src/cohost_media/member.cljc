@@ -58,15 +58,24 @@
 
 (defn attempt
   "Run f, answering [true value] or [false error] — each host's own catch, here in the one member
-   namespace instead of repeated per tasks file."
+   namespace instead of repeated per tasks file. The cljs arm catches :default: Throwable
+   names no cljs type, so the shared arm analyzed there referenced an undeclared var and
+   its catch could not fire as written (the analyzer's warning named it, 2026-11-17)."
   [f]
   #?(:glj (try [true (f)] (catch go/any e [false e]))
+     :cljs (try [true (f)] (catch :default e [false e]))
      :default (try [true (f)] (catch Throwable e [false e]))))
 
 (defn exit!
-  "Leave the process with code — each host's own way out."
+  "Leave the process with code — each host's own way out. A realm member (cljs) has no
+   process of its own to leave: the seat owns the process and node-serve! detaches
+   instead, so an exit! from a realm is a programming error and throws. (The arm it
+   replaces named System/exit and shutdown-agents unconditionally, which analyze on
+   no cljs host — the warnings the sweep removed.)"
   [code]
   #?(:glj (os.Exit code)
+     :cljs (throw (ex-info "member: exit! has no realm arm — the seat owns the process; node-serve! detaches"
+                           {:code code}))
      :default (do (try (shutdown-agents) (catch Throwable _ nil))
                   (System/exit code))))
 

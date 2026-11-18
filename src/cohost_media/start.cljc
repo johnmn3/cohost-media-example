@@ -133,6 +133,18 @@
    carries it (prepare-page!) and the check that reads it back (browser-check!)."
   "f01:thumb")
 
+(defn- display?
+  "A GUI session this process can open a window in: a macOS or Windows demo runs in the
+   user's desktop session; on Linux a display server names itself in the environment
+   (DISPLAY, WAYLAND_DISPLAY). No display — a server box, a CI run — means the browser
+   member runs headless, as it always has there."
+  []
+  (let [os (str/lower-case (str (getprop "os.name")))]
+    (boolean (or (str/includes? os "mac")
+                 (str/includes? os "windows")
+                 (not-empty (getenv "DISPLAY"))
+                 (not-empty (getenv "WAYLAND_DISPLAY"))))))
+
 (defn browser-args
   "The browser pool's args, as data — the one source the start call (start-seat!) reads: the
    bootstream the seat opens and the server it serves it with. The bootstream is the run's
@@ -143,11 +155,18 @@
    port; cross-origin isolation is its automatic default (the page's SharedArrayBuffer tier
    needs it, in the shell and the iframe alike); its :handler — the gateway's endpoints
    in-process and the run's output files — is a function, supplied by start-seat! when the
-   seat starts, over the gateway the pools start first."
+   seat starts, over the gateway the pools start first. The browser itself is the app's
+   own discovery (find-tools' :chrome — EVE_CHROME first, then the platform's apps and
+   PATH), handed to the seat explicitly: the seat's own search knows no macOS app or
+   cache locations, so an app that found a browser and did not say so left the seat to
+   find none (John's Mac, 2026-11-17: the browser member never launched). It opens a
+   window where a GUI session exists (display?) and runs headless where none does."
   [cfg]
   {:seat :browser
    :bootstream (str (fs/path (:page cfg) "shell.html"))
-   :server {:port (:page-port cfg)}})
+   :server {:port (:page-port cfg)}
+   :chrome {:bin (:chrome tools)
+            :headless (not (display?))}})
 
 (defn node-args
   "The node pool's args, as data — the one source the start call (start-seat!) reads: the seat
