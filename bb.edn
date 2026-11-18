@@ -4,7 +4,7 @@
 
   setup {:doc "Fetch the two pinned dependencies as sibling checkouts (eve/, cohost.cljc/) and sync this app into the Eve tree at eve/capstone/cohost-media, where its boot program expects it."
          :task (let [eve-sha "9e97a0b73f754f9a0060769028370e1e14712290"
-                     cohost-sha "0277045cd981b2c7e5c41e7d66ecd31e7665dcb4"
+                     cohost-sha "df347fab1d26840d3a73dbb5e952efa68d6a2c7b"
                      ensure (fn [dir url sha]
                               (when-not (fs/exists? dir)
                                 (p/shell "git" "clone" url dir))
