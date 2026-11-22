@@ -7,20 +7,20 @@
 ;;   bb cohost-media scan <dir> [--hosts ...]     the library of a folder of your own
 ;;   bb cohost-media verify                        the done bar: the runs of doc README §"The done bar", compared
 (ns cohost-media.boot
-  "The boot program's host entry: cohost-media.start is the program; this namespace installs
+    "The boot program's host entry: cohost-media.start is the program; this namespace installs
    the seat's adapter and exits with start/dispatch's answer."
-  (:require [cohost.hosts.auto]
-            [cohost-media.start :as start]))
+    (:require [cohost-media.start :as start]
+              [cohost.hosts.auto]))
 
 #?(:clj
    (defn -main [& [cmd & args]]
-     (try
-       (System/exit (start/dispatch cmd args))
+         (try
+          (System/exit (start/dispatch cmd args))
        ;; what this machine lacks: the message alone, no stack trace
-       (catch clojure.lang.ExceptionInfo e
-         (if (let [d (ex-data e)] (and (map? d) (or (:unready d) (:missing d))))
-           (do (binding [*out* *err*] (println (ex-message e))) (System/exit 1))
-           (throw e)))))
+          (catch clojure.lang.ExceptionInfo e
+                 (if (let [d (ex-data e)] (and (map? d) (or (:unready d) (:missing d))))
+                     (do (binding [*out* *err*] (println (ex-message e))) (System/exit 1))
+                     (throw e)))))
    :cljs
    (defn -main [& args]
-     (js/process.exit (start/dispatch (first args) (rest args)))))
+         (js/process.exit (start/dispatch (first args) (rest args)))))
