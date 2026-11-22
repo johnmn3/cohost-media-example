@@ -13,6 +13,9 @@
 (defn init!
       "Start the media server and the folder watcher (the member ctx's control config names the ports)."
       [ctx]
+      ;; kondo: the condition is a runtime dispatch (impl-fn resolves the
+      ;; impl var only on a runtime that carries it) - not a constant.
+      #_{:clj-kondo/ignore [:constant-condition]}
       (if-let [f (impl-fn 'cohost-media.media-impl/init!)]
               (f ctx)
               (throw (ex-info "media: no media facility on this runtime" {}))))
@@ -21,6 +24,9 @@
       "The publish job: a transcode asked of the media server by a range request, recorded with the URL
    the page plays it from."
       [job]
+      ;; kondo: the condition is a runtime dispatch (impl-fn resolves the
+      ;; impl var only on a runtime that carries it) - not a constant.
+      #_{:clj-kondo/ignore [:constant-condition]}
       (if-let [f (impl-fn 'cohost-media.media-impl/publish!)]
               (f job)
               (throw (ex-info "media: no media facility on this runtime" {}))))

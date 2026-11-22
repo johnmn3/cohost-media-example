@@ -55,6 +55,9 @@
       "Transcode the job's file to its web MP4 and record the result — natively where the member's pool
    config names the native implementation, by the ffmpeg CLI otherwise."
       [job]
+      ;; kondo: the condition is a runtime dispatch (native-fn resolves the
+      ;; impl var only on a runtime that carries it) - not a constant.
+      #_{:clj-kondo/ignore [:constant-condition]}
       (if-let [f (and (= :native (:av @st/ctx)) (native-fn 'cohost-media.av-jolt/transcode-job!))]
               (f job)
               (cli-transcode! job)))
@@ -74,6 +77,9 @@
       "Decode the job's audio to PCM in its window file and record the result — natively where the member's
    pool config names the native implementation, by the ffmpeg CLI otherwise."
       [job]
+      ;; kondo: the condition is a runtime dispatch (native-fn resolves the
+      ;; impl var only on a runtime that carries it) - not a constant.
+      #_{:clj-kondo/ignore [:constant-condition]}
       (if-let [f (and (= :native (:av @st/ctx)) (native-fn 'cohost-media.av-jolt/pcm-job!))]
               (f job)
               (cli-pcm! job)))

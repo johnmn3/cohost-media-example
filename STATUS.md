@@ -102,6 +102,15 @@ property (no edit on non-zero exit) held in every case.
    sorting :require lists changes namespace load order — semantics,
    not formatting. Proven below (step 3 resolution). Proposed as a
    fleet template change in RETRO.md.
+2. **Four `#_{:clj-kondo/ignore [:constant-condition]}` site
+   suppressions** (av.cljc transcode!/pcm!, media.cljc
+   init!/publish!). Reason: verified false positives — the conditions
+   are lazy runtime dispatch (`requiring-resolve` under
+   `#?(:cljs nil :default …)`); kondo reads the nil branch and calls
+   the condition constant, but the dispatch provably resolves at
+   runtime (the glj member's media-server and watcher ARE
+   media-impl code reached through this path, observed 2026-11-22).
+   Each site carries the reason as a comment at the form.
 
 ## Step 3 RESOLUTION (2026-11-22, ~22:20 ET)
 
