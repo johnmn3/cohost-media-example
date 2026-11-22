@@ -1,0 +1,20 @@
+WARNING: Proxy info is of authenticated type - discarding the user/pw as we do not support it!
+WARNING: Proxy info is of authenticated type - discarding the user/pw as we do not support it!
+page/src/cohost_media/page.cljc:56:1 cohost-media.page/runtime-main
+page/src/cohost_media/page.cljc:99:1 cohost-media.page/probe-main
+page/src/cohost_media/page.cljc:138:1 cohost-media.page/view-main
+page/src/cohost_media/page.cljc:583:1 cohost-media.page/init
+src/cohost_media/av_jolt.cljc:214:1 cohost-media.av-jolt/C-NB-STREAMS
+src/cohost_media/av_jolt.cljc:616:1 cohost-media.av-jolt/transcode-job!
+src/cohost_media/av_jolt.cljc:624:1 cohost-media.av-jolt/pcm-job!
+src/cohost_media/boot_fs.cljc:36:4 cohost-media.boot-fs/parent
+src/cohost_media/boot_fs.cljc:93:4 cohost-media.boot-fs/canonicalize
+src/cohost_media/coordinator.cljc:73:1 cohost-media.coordinator/settled?
+src/cohost_media/domain.cljc:30:1 cohost-media.domain/open-rungs
+src/cohost_media/member.cljc:158:6 cohost-media.member/node-state
+src/cohost_media/member.cljc:172:6 cohost-media.member/node-serve!
+src/cohost_media/meta.cljc:32:1 cohost-media.meta/run!
+src/cohost_media/phash.cljc:93:1 cohost-media.phash/groups
+src/cohost_media/start.cljc:608:1 cohost-media.start/alive?
+src/cohost_media/state.cljc:9:1 cohost-media.state/control
+src/cohost_media/supervise.cljc:24:1 cohost-media.supervise/children

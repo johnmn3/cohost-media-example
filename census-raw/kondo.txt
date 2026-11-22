@@ -1,0 +1,205 @@
+page/src/cohost_media/page.cljc:31:16: warning: Unresolved namespace js. Are you missing a require?
+page/src/cohost_media/page.cljc:41:20: warning: Unresolved namespace pool. Are you missing a require?
+page/src/cohost_media/page.cljc:42:37: warning: Unresolved namespace tasks. Are you missing a require?
+page/src/cohost_media/page.cljc:45:33: warning: Unresolved namespace em. Are you missing a require?
+page/src/cohost_media/page.cljc:70:6: warning: Unresolved namespace h. Are you missing a require?
+page/src/cohost_media/page.cljc:172:43: warning: Unresolved namespace str. Are you missing a require?
+page/src/cohost_media/page.cljc:241:63: error: Unresolved symbol: js-obj
+page/src/cohost_media/page.cljc:475:20: warning: Unresolved namespace reagami. Are you missing a require?
+src/cohost_media/av.cljc:8:14: warning: namespace clojure.string is required but never used
+src/cohost_media/av.cljc:9:14: warning: namespace cohost-media.core is required but never used
+src/cohost_media/av.cljc:11:14: warning: namespace cohost-media.work is required but never used
+src/cohost_media/av.cljc:15:4: warning: unused binding sym
+src/cohost_media/av.cljc:43:32: warning: unused binding path
+src/cohost_media/av.cljc:43:37: warning: unused binding id
+src/cohost_media/av.cljc:43:40: warning: unused binding kind
+src/cohost_media/av.cljc:43:45: warning: unused binding out
+src/cohost_media/av.cljc:58:14: warning: Condition always false
+src/cohost_media/av.cljc:62:26: warning: unused binding path
+src/cohost_media/av.cljc:62:31: warning: unused binding id
+src/cohost_media/av.cljc:62:34: warning: unused binding window
+src/cohost_media/av.cljc:77:14: warning: Condition always false
+src/cohost_media/av_jolt.cljc:25:59: warning: Unresolved namespace System. Are you missing a require?
+src/cohost_media/av_jolt.cljc:50:82: error: Unresolved symbol: Throwable
+src/cohost_media/av_jolt.cljc:66:13: error: Unresolved symbol: avutil-version
+src/cohost_media/av_jolt.cljc:67:13: error: Unresolved symbol: avcodec-version
+src/cohost_media/av_jolt.cljc:68:13: error: Unresolved symbol: avformat-version
+src/cohost_media/av_jolt.cljc:69:13: error: Unresolved symbol: av-log-set-level
+src/cohost_media/av_jolt.cljc:70:13: error: Unresolved symbol: av-strerror
+src/cohost_media/av_jolt.cljc:71:13: error: Unresolved symbol: avformat-open-input
+src/cohost_media/av_jolt.cljc:72:13: error: Unresolved symbol: avformat-find-stream-info
+src/cohost_media/av_jolt.cljc:73:13: error: Unresolved symbol: av-find-best-stream
+src/cohost_media/av_jolt.cljc:74:13: error: Unresolved symbol: avformat-close-input
+src/cohost_media/av_jolt.cljc:75:13: error: Unresolved symbol: av-read-frame
+src/cohost_media/av_jolt.cljc:76:13: error: Unresolved symbol: avformat-alloc-output-context2
+src/cohost_media/av_jolt.cljc:77:13: error: Unresolved symbol: avformat-new-stream
+src/cohost_media/av_jolt.cljc:78:13: error: Unresolved symbol: avio-open
+src/cohost_media/av_jolt.cljc:79:13: error: Unresolved symbol: avio-closep
+src/cohost_media/av_jolt.cljc:80:13: error: Unresolved symbol: avformat-write-header
+src/cohost_media/av_jolt.cljc:81:13: error: Unresolved symbol: av-interleaved-write-frame
+src/cohost_media/av_jolt.cljc:82:13: error: Unresolved symbol: av-write-trailer
+src/cohost_media/av_jolt.cljc:83:13: error: Unresolved symbol: avformat-free-context
+src/cohost_media/av_jolt.cljc:85:13: error: Unresolved symbol: avcodec-alloc-context3
+src/cohost_media/av_jolt.cljc:86:13: error: Unresolved symbol: avcodec-free-context
+src/cohost_media/av_jolt.cljc:87:13: error: Unresolved symbol: avcodec-parameters-to-context
+src/cohost_media/av_jolt.cljc:88:13: error: Unresolved symbol: avcodec-parameters-from-context
+src/cohost_media/av_jolt.cljc:89:13: error: Unresolved symbol: avcodec-open2
+src/cohost_media/av_jolt.cljc:90:13: error: Unresolved symbol: avcodec-find-encoder-by-name
+src/cohost_media/av_jolt.cljc:91:13: error: Unresolved symbol: avcodec-send-packet
+src/cohost_media/av_jolt.cljc:92:13: error: Unresolved symbol: avcodec-receive-frame
+src/cohost_media/av_jolt.cljc:93:13: error: Unresolved symbol: avcodec-send-frame
+src/cohost_media/av_jolt.cljc:94:13: error: Unresolved symbol: avcodec-receive-packet
+src/cohost_media/av_jolt.cljc:96:13: error: Unresolved symbol: av-packet-alloc
+src/cohost_media/av_jolt.cljc:97:13: error: Unresolved symbol: av-packet-free
+src/cohost_media/av_jolt.cljc:98:13: error: Unresolved symbol: av-packet-unref
+src/cohost_media/av_jolt.cljc:99:13: error: Unresolved symbol: av-frame-alloc
+src/cohost_media/av_jolt.cljc:100:13: error: Unresolved symbol: av-frame-free
+src/cohost_media/av_jolt.cljc:101:13: error: Unresolved symbol: av-frame-unref
+src/cohost_media/av_jolt.cljc:102:13: error: Unresolved symbol: av-frame-get-buffer
+src/cohost_media/av_jolt.cljc:103:13: error: Unresolved symbol: av-frame-make-writable
+src/cohost_media/av_jolt.cljc:105:13: error: Unresolved symbol: av-dict-set
+src/cohost_media/av_jolt.cljc:106:13: error: Unresolved symbol: av-dict-free
+src/cohost_media/av_jolt.cljc:107:13: error: Unresolved symbol: av-opt-set
+src/cohost_media/av_jolt.cljc:108:13: error: Unresolved symbol: av-opt-set-int
+src/cohost_media/av_jolt.cljc:109:13: error: Unresolved symbol: av-opt-get
+src/cohost_media/av_jolt.cljc:110:13: error: Unresolved symbol: av-opt-get-int
+src/cohost_media/av_jolt.cljc:111:13: error: Unresolved symbol: av-opt-find
+src/cohost_media/av_jolt.cljc:112:13: error: Unresolved symbol: av-free
+src/cohost_media/av_jolt.cljc:113:13: error: Unresolved symbol: av-freep
+src/cohost_media/av_jolt.cljc:114:13: error: Unresolved symbol: av-get-pix-fmt
+src/cohost_media/av_jolt.cljc:115:13: error: Unresolved symbol: av-rescale-rnd
+src/cohost_media/av_jolt.cljc:117:13: error: Unresolved symbol: sws-get-context
+src/cohost_media/av_jolt.cljc:118:13: error: Unresolved symbol: sws-scale
+src/cohost_media/av_jolt.cljc:119:13: error: Unresolved symbol: sws-free-context
+src/cohost_media/av_jolt.cljc:121:13: error: Unresolved symbol: swr-alloc-set-opts2
+src/cohost_media/av_jolt.cljc:122:13: error: Unresolved symbol: swr-init
+src/cohost_media/av_jolt.cljc:123:13: error: Unresolved symbol: swr-convert
+src/cohost_media/av_jolt.cljc:124:13: error: Unresolved symbol: swr-get-out-samples
+src/cohost_media/av_jolt.cljc:125:13: error: Unresolved symbol: swr-free
+src/cohost_media/av_jolt.cljc:126:13: error: Unresolved symbol: av-channel-layout-default
+src/cohost_media/av_jolt.cljc:127:13: error: Unresolved symbol: av-channel-layout-from-string
+src/cohost_media/av_jolt.cljc:128:13: error: Unresolved symbol: av-channel-layout-copy
+src/cohost_media/av_jolt.cljc:129:13: error: Unresolved symbol: av-channel-layout-uninit
+src/cohost_media/av_jolt.cljc:130:13: error: Unresolved symbol: av-samples-alloc
+src/cohost_media/av_jolt.cljc:131:13: error: Unresolved symbol: av-audio-fifo-alloc
+src/cohost_media/av_jolt.cljc:132:13: error: Unresolved symbol: av-audio-fifo-write
+src/cohost_media/av_jolt.cljc:133:13: error: Unresolved symbol: av-audio-fifo-read
+src/cohost_media/av_jolt.cljc:134:13: error: Unresolved symbol: av-audio-fifo-size
+src/cohost_media/av_jolt.cljc:135:13: error: Unresolved symbol: av-audio-fifo-free
+src/cohost_media/av_jolt.cljc:138:13: error: Unresolved symbol: c-open
+src/cohost_media/av_jolt.cljc:139:13: error: Unresolved symbol: c-write
+src/cohost_media/av_jolt.cljc:140:13: error: Unresolved symbol: c-close
+src/cohost_media/av_jolt.cljc:141:13: error: Unresolved symbol: c-rename
+src/cohost_media/av_jolt.cljc:142:13: error: Unresolved symbol: c-getpid
+src/cohost_media/av_jolt.cljc:214:16: warning: Unused private var cohost-media.av-jolt/C-NB-STREAMS
+src/cohost_media/av_jolt.cljc:374:4: error: Unresolved symbol: with-open
+src/cohost_media/av_jolt.cljc:374:15: error: Unresolved symbol: a
+src/cohost_media/av_jolt.cljc:588:13: error: Unresolved symbol: c-mkdir
+src/cohost_media/av_jolt.cljc:590:13: error: Unresolved symbol: c-lseek
+src/cohost_media/boot_fs.cljc:7:14: warning: namespace clojure.string is required but never used
+src/cohost_media/boot_proc.cljc:9:14: warning: namespace clojure.string is required but never used
+src/cohost_media/boot_proc.cljc:91:4: warning: unused binding x
+src/cohost_media/coordinator.cljc:73:8: warning: Unused private var cohost-media.coordinator/settled?
+src/cohost_media/gateway.cljc:19:32: warning: unused binding atoms
+src/cohost_media/media.cljc:10:4: warning: unused binding sym
+src/cohost_media/media.cljc:17:14: warning: Condition always false
+src/cohost_media/media.cljc:25:14: warning: Condition always false
+src/cohost_media/member.cljc:21:14: warning: namespace cohost-media.tasks is required but never used
+src/cohost_media/member.cljc:95:88: warning: unused binding config
+src/cohost_media/meta.cljc:8:14: warning: namespace clojure.string is required but never used
+src/cohost_media/meta.cljc:10:14: warning: namespace cohost-media.work is required but never used
+src/cohost_media/meta.cljc:34:12: warning: unused binding path
+src/cohost_media/phash.cljc:50:50: info: Redundant nested call: *
+src/cohost_media/start.cljc:36:14: warning: namespace clojure.data.json is required but never used
+src/cohost_media/start.cljc:45:58: warning: Unused import HttpRequest$BodyPublishers
+src/cohost_media/start.cljc:62:4: warning: unused binding k
+src/cohost_media/start.cljc:78:14: info: Single argument to str already is a string
+src/cohost_media/start.cljc:79:14: info: Single argument to str already is a string
+src/cohost_media/start.cljc:80:34: error: Unresolved symbol: slurp
+src/cohost_media/start.cljc:80:40: info: Single argument to str already is a string
+src/cohost_media/start.cljc:86:3: info: Single argument to str already is a string
+src/cohost_media/start.cljc:92:26: info: Single argument to str already is a string
+src/cohost_media/start.cljc:93:31: info: Single argument to str already is a string
+src/cohost_media/start.cljc:94:26: info: Single argument to str already is a string
+src/cohost_media/start.cljc:95:31: info: Single argument to str already is a string
+src/cohost_media/start.cljc:169:16: info: Single argument to str already is a string
+src/cohost_media/start.cljc:183:18: info: Single argument to str already is a string
+src/cohost_media/start.cljc:208:22: info: Single argument to str already is a string
+src/cohost_media/start.cljc:245:14: info: Single argument to str already is a string
+src/cohost_media/start.cljc:287:19: info: Single argument to str already is a string
+src/cohost_media/start.cljc:347:4: warning: unused binding atoms
+src/cohost_media/start.cljc:347:10: warning: unused binding procs
+src/cohost_media/start.cljc:347:16: warning: unused binding rid
+src/cohost_media/start.cljc:347:20: warning: unused binding child
+src/cohost_media/start.cljc:400:39: error: Unresolved symbol: Throwable
+src/cohost_media/start.cljc:434:16: warning: Unused private var cohost-media.start/page-mime
+src/cohost_media/start.cljc:473:8: warning: Unused private var cohost-media.start/seat-handler
+src/cohost_media/start.cljc:477:4: warning: unused binding run
+src/cohost_media/start.cljc:477:8: warning: unused binding atoms
+src/cohost_media/start.cljc:477:14: warning: unused binding procs
+src/cohost_media/start.cljc:494:4: warning: unused binding run
+src/cohost_media/start.cljc:494:8: warning: unused binding atoms
+src/cohost_media/start.cljc:494:14: warning: unused binding cfg
+src/cohost_media/start.cljc:494:18: warning: unused binding procs
+src/cohost_media/start.cljc:494:24: warning: unused binding child
+src/cohost_media/start.cljc:523:4: warning: unused binding run
+src/cohost_media/start.cljc:523:8: warning: unused binding atoms
+src/cohost_media/start.cljc:523:14: warning: unused binding cfg
+src/cohost_media/start.cljc:523:18: warning: unused binding procs
+src/cohost_media/start.cljc:523:24: warning: unused binding child
+src/cohost_media/start.cljc:619:13: info: Single argument to str already is a string
+src/cohost_media/start.cljc:620:16: info: Single argument to str already is a string
+src/cohost_media/start.cljc:624:21: info: Single argument to str already is a string
+src/cohost_media/start.cljc:624:50: info: Single argument to str already is a string
+src/cohost_media/start.cljc:749:12: error: Unresolved symbol: Exception
+src/cohost_media/start.cljc:795:4: warning: unused binding path
+src/cohost_media/start.cljc:805:14: warning: unused binding run
+src/cohost_media/start.cljc:898:1: warning: redefined var #'cohost-media.start/display?
+src/cohost_media/start.cljc:913:20: info: Single argument to str already is a string
+src/cohost_media/start.cljc:940:6: error: Unresolved symbol: spit
+src/cohost_media/start.cljc:940:11: info: Single argument to str already is a string
+src/cohost_media/start.cljc:944:11: info: Single argument to str already is a string
+src/cohost_media/start.cljc:971:16: info: Single argument to str already is a string
+src/cohost_media/start.cljc:981:22: info: Single argument to str already is a string
+src/cohost_media/start.cljc:1053:4: warning: unused binding run
+src/cohost_media/start.cljc:1053:8: warning: unused binding atoms
+src/cohost_media/start.cljc:1053:14: warning: unused binding cfg
+src/cohost_media/start.cljc:1053:18: warning: unused binding timeout-ms
+src/cohost_media/start.cljc:1059:17: info: Single argument to str already is a string
+src/cohost_media/start.cljc:1253:6: error: Unresolved symbol: alter-var-root
+src/cohost_media/start.cljc:1275:17: info: Single argument to str already is a string
+src/cohost_media/start.cljc:1277:22: info: Single argument to str already is a string
+src/cohost_media/start.cljc:1278:17: info: Single argument to str already is a string
+src/cohost_media/start.cljc:1299:29: info: Single argument to str already is a string
+src/cohost_media/start.cljc:1309:19: info: Single argument to str already is a string
+src/cohost_media/start.cljc:1310:12: info: Single argument to str already is a string
+src/cohost_media/start.cljc:1318:14: info: Single argument to str already is a string
+src/cohost_media/start.cljc:1373:29: info: Single argument to str already is a string
+src/cohost_media/start.cljc:1421:15: info: Single argument to str already is a string
+src/cohost_media/start.cljc:1422:23: info: Single argument to str already is a string
+src/cohost_media/start.cljc:1435:12: error: Unresolved symbol: read-line
+src/cohost_media/start.cljc:1443:15: info: Single argument to str already is a string
+src/cohost_media/start.cljc:1520:11: info: Single argument to str already is a string
+src/cohost_media/start.cljc:1538:53: info: Single argument to str already is a string
+src/cohost_media/tasks.cljc:18:29: info: Unused excluded var: meta
+src/cohost_media/tasks.cljc:19:14: warning: namespace clojure.string is required but never used
+src/cohost_media/tasks.cljc:21:14: warning: namespace cohost-media.core is required but never used
+src/cohost_media/tasks.cljc:23:14: warning: namespace cohost-media.state is required but never used
+src/cohost_media/tasks.cljc:31:15: error: Unresolved symbol: index
+src/cohost_media/tasks.cljc:31:22: error: Unresolved symbol: job
+src/cohost_media/tasks.cljc:33:15: error: Unresolved symbol: group
+src/cohost_media/tasks.cljc:35:15: error: Unresolved symbol: meta
+src/cohost_media/tasks.cljc:51:15: error: Unresolved symbol: phash
+src/cohost_media/tasks.cljc:51:30: error: Unresolved symbol: path
+src/cohost_media/tasks.cljc:51:35: error: Unresolved symbol: kind
+src/cohost_media/tasks.cljc:62:15: error: Unresolved symbol: transcode
+src/cohost_media/tasks.cljc:64:15: error: Unresolved symbol: pcm
+src/cohost_media/tasks.cljc:76:15: error: Unresolved symbol: loudness
+src/cohost_media/tasks.cljc:88:15: error: Unresolved symbol: publish
+src/cohost_media/tasks.cljc:114:15: error: Unresolved symbol: thumb
+src/cohost_media/tasks.cljc:114:35: error: Unresolved symbol: id
+src/cohost_media/tasks.cljc:114:43: error: Unresolved symbol: out
+src/cohost_media/tasks.cljc:127:15: error: Unresolved symbol: sheet
+src/cohost_media/tasks.cljc:153:15: error: Unresolved symbol: tags
+src/cohost_media/tasks.cljc:196:15: error: Unresolved symbol: waveform
+linting took 13035ms, errors: 99, warnings: 67

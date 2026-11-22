@@ -1,0 +1,515 @@
+WARNING: Proxy info is of authenticated type - discarding the user/pw as we do not support it!
+WARNING: Proxy info is of authenticated type - discarding the user/pw as we do not support it!
+page/src/cohost_media/page.cljc:115:1 [naming/conversion-functions] - Use `->` instead of `to` in the names of conversion functions.
+(defn send-to-page! ...)
+Consider using:
+(defn send->page! ...)
+
+page/src/cohost_media/page.cljc:580:21 [lint/empty-loop-in-fn] - Empty loop can be removed for direct recursion
+(fn [] (loop [] (let [m (h/receive! 0)] (when (map? m) (on-message m) (recur)))))
+Consider using:
+(fn ([] (let [m (h/receive! 0)] (when (map? m) (on-message m) (recur)))))
+
+src/cohost_media/av_jolt.cljc:395:13 [lint/loop-empty-when] - Use `while` instead of recreating it.
+(loop []
+  (when (>= (av-read-frame ic pkt) 0)
+    (when (= (:index d) (rd pkt :int P-STREAM)) (decode! d pkt f on-frame))
+    (av-packet-unref pkt)
+    (recur)))
+Consider using:
+(while
+ (>= (av-read-frame ic pkt) 0)
+ (when (= (:index d) (rd pkt :int P-STREAM)) (decode! d pkt f on-frame))
+ (av-packet-unref pkt))
+
+src/cohost_media/av_jolt.cljc:559:9 [lint/loop-empty-when] - Use `while` instead of recreating it.
+(loop []
+  (when (>= (av-read-frame ic pkt) 0)
+    (let [si (rd pkt :int P-STREAM)]
+      (cond
+        (and vd (= si (:index vd))) (decode! vd pkt f on-video)
+        (and ad (= si (:index ad))) (decode! ad pkt f on-audio)))
+    (av-packet-unref pkt)
+    (recur)))
+Consider using:
+(while
+ (>= (av-read-frame ic pkt) 0)
+ (let [si (rd pkt :int P-STREAM)]
+   (cond
+     (and vd (= si (:index vd))) (decode! vd pkt f on-video)
+     (and ad (= si (:index ad))) (decode! ad pkt f on-audio)))
+ (av-packet-unref pkt))
+
+src/cohost_media/coordinator.cljc:54:39 [lint/into-literal] - Use `set` instead of recreating it.
+(into #{} (remove coverage needs))
+Consider using:
+(set (remove coverage needs))
+
+src/cohost_media/coordinator.cljc:149:22 [lint/let-if] - Use `if-let` instead of recreating it.
+(let [id (submit-one!
+          dh
+          (em/job-pool k)
+          k
+          args
+          {:needs needs,
+           :scope (:id e),
+           :after (vec
+                   (keep
+                    (fn [a] (let [id (get ids a)] (when (contains? @present id) id)))
+                    after))})]
+  (if id
+    (do (vswap! present conj id) [(assoc ids k id) (assoc submitted k id)])
+    [ids submitted]))
+Consider using:
+(if-let [id (submit-one!
+             dh
+             (em/job-pool k)
+             k
+             args
+             {:needs needs,
+              :scope (:id e),
+              :after (vec
+                      (keep
+                       (fn [a] (let [id (get ids a)] (when (contains? @present id) id)))
+                       after))})]
+  (do (vswap! present conj id) [(assoc ids k id) (assoc submitted k id)])
+  [ids submitted])
+
+src/cohost_media/coordinator.cljc:203:30 [style/filter-vec-filterv] - Use `filterv` instead of recreating it.
+(vec (filter orphan? (keys deferred)))
+Consider using:
+(filterv orphan? (keys deferred))
+
+src/cohost_media/coordinator.cljc:213:51 [lint/into-literal] - Use `set` instead of recreating it.
+(into #{} (remove coverage (:needs info)))
+Consider using:
+(set (remove coverage (:needs info)))
+
+src/cohost_media/core.cljc:32:3 [lint/let-when] - Use `when-let` instead of recreating it.
+(let [i (str/last-index-of path ".")] (when i (str/lower-case (subs path (inc i)))))
+Consider using:
+(when-let [i (str/last-index-of path ".")] (str/lower-case (subs path (inc i))))
+
+src/cohost_media/core.cljc:36:24 [lint/let-if] - Use `if-let` instead of recreating it.
+(let [i (str/last-index-of path "/")] (if i (subs path (inc i)) path))
+Consider using:
+(if-let [i (str/last-index-of path "/")] (subs path (inc i)) path)
+
+src/cohost_media/phash.cljc:26:46 [style/plus-one] - Use `inc` instead of recreating it.
+(+ (* 2 k) 1)
+Consider using:
+(inc (* 2 k))
+
+src/cohost_media/phash.cljc:34:31 [style/plus-one] - Use `inc` instead of recreating it.
+(+ (* 2 x) 1)
+Consider using:
+(inc (* 2 x))
+
+src/cohost_media/phash.cljc:50:36 [style/redundant-nested-call] - Redundant nested call: `*`.
+(* (nth cu x) (* 1.0 (nth px (+ (* y N) x))))
+Consider using:
+(* (nth cu x) 1.0 (nth px (+ (* y N) x)))
+
+src/cohost_media/phash.cljc:50:36 [style/nested-multiply] - Use the variadic arity of `*`.
+(* (nth cu x) (* 1.0 (nth px (+ (* y N) x))))
+Consider using:
+(* (nth cu x) 1.0 (nth px (+ (* y N) x)))
+
+src/cohost_media/phash.cljc:62:5 [style/apply-str] - Use `clojure.string/join` instead of recreating it.
+(apply str (map (fn [i] (nth "0123456789abcdef" (digit i))) (range 16)))
+Consider using:
+(clojure.string/join (map (fn [i] (nth "0123456789abcdef" (digit i))) (range 16)))
+
+src/cohost_media/r128.cljc:35:22 [style/prefer-clj-math] - Use the `clojure.math` function instead of interop.
+Math/log
+Consider using:
+clojure.math/log
+
+src/cohost_media/r128.cljc:35:35 [style/prefer-clj-math] - Use the `clojure.math` function instead of interop.
+Math/log
+Consider using:
+clojure.math/log
+
+src/cohost_media/r128.cljc:69:18 [style/prefer-clj-math] - Use the `clojure.math` function instead of interop.
+Math/round
+Consider using:
+clojure.math/round
+
+src/cohost_media/start.cljc:250:20 [style/prefer-condp] - Prefer condp when predicate and arguments are the same
+(cond
+  (= :jvm h)
+    [rid
+     {:host h,
+      :member? true,
+      :wait [],
+      :logs logs,
+      :dir eve-dir,
+      :env {},
+      :cmd ["in-process" "cohost-media.member"]}]
+  (= :browser h)
+    [rid
+     {:host h,
+      :member? true,
+      :wait [],
+      :logs logs,
+      :dir eve-dir,
+      :env {},
+      :cmd ["in-process" "cohost.cljs-pool" ":browser"],
+      :args (browser-args cfg)}]
+  (= :node h)
+    [rid
+     {:host h,
+      :member? true,
+      :wait [],
+      :logs logs,
+      :dir eve-dir,
+      :env {},
+      :cmd ["in-process" "cohost.cljs-pool" ":node"],
+      :args (node-args)}]
+  :else
+    (let [{:keys [cmd env dir]} (member-cmd
+                                 h
+                                 rid
+                                 (:base run)
+                                 (:out run)
+                                 (:window run)
+                                 cfg)]
+      [rid
+       {:host h,
+        :member? true,
+        :cmd (mapv str cmd),
+        :env (or env {}),
+        :dir (str (or dir eve-dir)),
+        :logs logs,
+        :wait (case h :bb [:gateway] [])}]))
+Consider using:
+(condp = h
+  :jvm
+    [rid
+     {:host h,
+      :member? true,
+      :wait [],
+      :logs logs,
+      :dir eve-dir,
+      :env {},
+      :cmd ["in-process" "cohost-media.member"]}]
+  :browser
+    [rid
+     {:host h,
+      :member? true,
+      :wait [],
+      :logs logs,
+      :dir eve-dir,
+      :env {},
+      :cmd ["in-process" "cohost.cljs-pool" ":browser"],
+      :args (browser-args cfg)}]
+  :node
+    [rid
+     {:host h,
+      :member? true,
+      :wait [],
+      :logs logs,
+      :dir eve-dir,
+      :env {},
+      :cmd ["in-process" "cohost.cljs-pool" ":node"],
+      :args (node-args)}]
+  (let [{:keys [cmd env dir]} (member-cmd
+                               h
+                               rid
+                               (:base run)
+                               (:out run)
+                               (:window run)
+                               cfg)]
+    [rid
+     {:host h,
+      :member? true,
+      :cmd (mapv str cmd),
+      :env (or env {}),
+      :dir (str (or dir eve-dir)),
+      :logs logs,
+      :wait (case h :bb [:gateway] [])}]))
+
+src/cohost_media/start.cljc:374:4 [lint/empty-loop-in-fn] - Empty loop can be removed for direct recursion
+(fn
+ []
+ (loop []
+   (cond
+     (sv/stopping? (:control atoms)) nil
+     (sv/ready? (:control atoms) child) (spawn-child! atoms procs rid child)
+     :else (do (pool/sleep-ms! 200) (recur)))))
+Consider using:
+(fn
+ ([]
+  (cond
+    (sv/stopping? (:control atoms)) nil
+    (sv/ready? (:control atoms) child) (spawn-child! atoms procs rid child)
+    :else (do (pool/sleep-ms! 200) (recur)))))
+
+src/cohost_media/start.cljc:386:4 [lint/empty-loop-in-fn] - Empty loop can be removed for direct recursion
+(fn
+ []
+ (loop []
+   (let [ctl (:control atoms)
+         rid "jvm"
+         child (get (:children (sv/value ctl)) rid)
+         n (sv/next-start ctl rid)]
+     (sv/started! ctl rid child (self-pid) n (now))
+     (let [fut (thread/submit-future
+                ex
+                (fn
+                 []
+                 (member/attempt
+                  (fn
+                   []
+                   (member/serve!
+                    (:base run)
+                    (:out run)
+                    (:window run)
+                    rid
+                    (str "http://127.0.0.1:" (:gateway-port cfg) "/gw")
+                    (:api-key cfg)
+                    (:jvm pool-configs))))))
+           _ (clojure.core/swap! procs assoc rid {:in-process true, :future fut})
+           [code err] (try
+                       (let [[ok? e] (thread/deref-future fut)] [(if ok? 0 1) e])
+                       (catch Throwable t [1 t]))]
+       (when-not (zero? code)
+         (println (pr-str {:step :jvm-member-error, :rid rid, :error (str err)}))
+         (when (instance? Throwable err) (.printStackTrace err)))
+       (sv/exited! ctl rid code (now))
+       (when (and (not (sv/stopping? ctl)) (not (zero? code)))
+         (if (sv/restart? (:exits (get (:members (sv/value ctl)) rid)) (now))
+           (recur)
+           (sv/gave-up! ctl rid (now))))))))
+Consider using:
+(fn
+ ([]
+  (let [ctl (:control atoms)
+        rid "jvm"
+        child (get (:children (sv/value ctl)) rid)
+        n (sv/next-start ctl rid)]
+    (sv/started! ctl rid child (self-pid) n (now))
+    (let [fut (thread/submit-future
+               ex
+               (fn
+                []
+                (member/attempt
+                 (fn
+                  []
+                  (member/serve!
+                   (:base run)
+                   (:out run)
+                   (:window run)
+                   rid
+                   (str "http://127.0.0.1:" (:gateway-port cfg) "/gw")
+                   (:api-key cfg)
+                   (:jvm pool-configs))))))
+          _ (clojure.core/swap! procs assoc rid {:in-process true, :future fut})
+          [code err] (try
+                      (let [[ok? e] (thread/deref-future fut)] [(if ok? 0 1) e])
+                      (catch Throwable t [1 t]))]
+      (when-not (zero? code)
+        (println (pr-str {:step :jvm-member-error, :rid rid, :error (str err)}))
+        (when (instance? Throwable err) (.printStackTrace err)))
+      (sv/exited! ctl rid code (now))
+      (when (and (not (sv/stopping? ctl)) (not (zero? code)))
+        (if (sv/restart? (:exits (get (:members (sv/value ctl)) rid)) (now))
+          (recur)
+          (sv/gave-up! ctl rid (now))))))))
+
+src/cohost_media/start.cljc:416:4 [lint/empty-loop-in-fn] - Empty loop can be removed for direct recursion
+(fn
+ []
+ (loop []
+   (when-not (sv/stopping? (:control atoms))
+     (doseq [[rid pid] (sv/asked (:control atoms))]
+       (sv/restarting! (:control atoms) rid (now))
+       (when (and pid (p/proc? (get @procs rid)))
+         (p/shell {:continue true} "kill" "-9" (str pid))))
+     (pool/sleep-ms! 300)
+     (recur))))
+Consider using:
+(fn
+ ([]
+  (when-not (sv/stopping? (:control atoms))
+    (doseq [[rid pid] (sv/asked (:control atoms))]
+      (sv/restarting! (:control atoms) rid (now))
+      (when (and pid (p/proc? (get @procs rid)))
+        (p/shell {:continue true} "kill" "-9" (str pid))))
+    (pool/sleep-ms! 300)
+    (recur))))
+
+src/cohost_media/start.cljc:441:1 [style/useless-do] - Unnecessary `do`.
+(do
+ (defn- out-file-resp
+   "The run's output files as a browser-seat handler response: the file under\n      out-dir the request path names (the media outputs: /media/thumbs/<id>.jpg\n      and friends), as base64 bytes (:body-as :b64 — the seat puts them on the\n      wire as bytes), with the Range support the page's media elements use —\n      the old page server's file answer, as a handler value instead of a\n      socket's. nil when the path names no output file (the seat's 404)."
+   [out-dir req]
+   (let [path (URLDecoder/decode (subs (:uri req) 1) "UTF-8")
+         rel (if (str/starts-with? path "media/") (subs path 6) path)
+         f (fs/file out-dir rel)]
+     (when (and (not (str/includes? rel "..")) (fs/exists? f) (not (fs/directory? f)))
+       (let [total (fs/size f)
+             ctype (get page-mime (fs/extension f) "application/octet-stream")
+             range-h (get (:headers req) "range")
+             [a b] (when range-h
+                     (let [[_ a b] (re-find #"bytes=(\\d*)-(\\d*)" range-h)]
+                       [(when (seq a) (parse-long a)) (when (seq b) (parse-long b))]))
+             start (or a 0)
+             end (min (or b (dec total)) (dec total))
+             bs (java.util.Arrays/copyOfRange (fs/read-all-bytes f) start (inc end))]
+         {:status (if range-h 206 200),
+          :headers (cond-> {"Content-Type" ctype, "Accept-Ranges" "bytes"}
+            range-h (assoc "Content-Range" (str "bytes " start "-" end "/" total))),
+          :body (.encodeToString (java.util.Base64/getEncoder) bs),
+          :body-as :b64})))))
+Consider using:
+(defn- out-file-resp
+  "The run's output files as a browser-seat handler response: the file under\n      out-dir the request path names (the media outputs: /media/thumbs/<id>.jpg\n      and friends), as base64 bytes (:body-as :b64 — the seat puts them on the\n      wire as bytes), with the Range support the page's media elements use —\n      the old page server's file answer, as a handler value instead of a\n      socket's. nil when the path names no output file (the seat's 404)."
+  [out-dir req]
+  (let [path (URLDecoder/decode (subs (:uri req) 1) "UTF-8")
+        rel (if (str/starts-with? path "media/") (subs path 6) path)
+        f (fs/file out-dir rel)]
+    (when (and (not (str/includes? rel "..")) (fs/exists? f) (not (fs/directory? f)))
+      (let [total (fs/size f)
+            ctype (get page-mime (fs/extension f) "application/octet-stream")
+            range-h (get (:headers req) "range")
+            [a b] (when range-h
+                    (let [[_ a b] (re-find #"bytes=(\\d*)-(\\d*)" range-h)]
+                      [(when (seq a) (parse-long a)) (when (seq b) (parse-long b))]))
+            start (or a 0)
+            end (min (or b (dec total)) (dec total))
+            bs (java.util.Arrays/copyOfRange (fs/read-all-bytes f) start (inc end))]
+        {:status (if range-h 206 200),
+         :headers (cond-> {"Content-Type" ctype, "Accept-Ranges" "bytes"}
+           range-h (assoc "Content-Range" (str "bytes " start "-" end "/" total))),
+         :body (.encodeToString (java.util.Base64/getEncoder) bs),
+         :body-as :b64}))))
+
+src/cohost_media/start.cljc:526:7 [lint/empty-loop-in-fn] - Empty loop can be removed for direct recursion
+(fn
+ []
+ (loop []
+   (let [ctl (:control atoms)
+         rid "node"
+         n (sv/next-start ctl rid)
+         ex (cljs-pool/executor 1 (node-args))]
+     (clojure.core/swap! procs assoc "node" ex)
+     (sv/started! ctl rid child (self-pid) n (now))
+     (let [[code err] (try
+                       (thread/deref-future
+                        (thread/submit-call
+                         ex
+                         'cohost-media.member/node-serve!
+                         (:base run)
+                         (:out run)
+                         (:window run)
+                         rid
+                         (get pool-configs :node)))
+                       (loop []
+                         (let [st (thread/deref-future
+                                   (thread/submit-call
+                                    ex
+                                    'cohost-media.member/node-state))]
+                           (if (= :stopped st) [0 nil] (do (pool/sleep-ms! 300) (recur)))))
+                       (catch Throwable t [1 t]))]
+       (when-not (zero? code)
+         (log "the node member errored:" (ex-message err))
+         (when (instance? Throwable err) (.printStackTrace err)))
+       (sv/exited! ctl rid code (now))
+       (try (thread/shutdown-executor! ex) (catch Throwable _ nil))
+       (when (and (not (sv/stopping? ctl)) (not (zero? code)))
+         (if (sv/restart? (:exits (get (:members (sv/value ctl)) rid)) (now))
+           (recur)
+           (sv/gave-up! ctl rid (now))))))))
+Consider using:
+(fn
+ ([]
+  (let [ctl (:control atoms)
+        rid "node"
+        n (sv/next-start ctl rid)
+        ex (cljs-pool/executor 1 (node-args))]
+    (clojure.core/swap! procs assoc "node" ex)
+    (sv/started! ctl rid child (self-pid) n (now))
+    (let [[code err] (try
+                      (thread/deref-future
+                       (thread/submit-call
+                        ex
+                        'cohost-media.member/node-serve!
+                        (:base run)
+                        (:out run)
+                        (:window run)
+                        rid
+                        (get pool-configs :node)))
+                      (loop []
+                        (let [st (thread/deref-future
+                                  (thread/submit-call
+                                   ex
+                                   'cohost-media.member/node-state))]
+                          (if (= :stopped st) [0 nil] (do (pool/sleep-ms! 300) (recur)))))
+                      (catch Throwable t [1 t]))]
+      (when-not (zero? code)
+        (log "the node member errored:" (ex-message err))
+        (when (instance? Throwable err) (.printStackTrace err)))
+      (sv/exited! ctl rid code (now))
+      (try (thread/shutdown-executor! ex) (catch Throwable _ nil))
+      (when (and (not (sv/stopping? ctl)) (not (zero? code)))
+        (if (sv/restart? (:exits (get (:members (sv/value ctl)) rid)) (now))
+          (recur)
+          (sv/gave-up! ctl rid (now))))))))
+
+src/cohost_media/start.cljc:752:5 [lint/loop-empty-when] - Use `while` instead of recreating it.
+(loop []
+  (when (and (< (- (now) t0) 40000)
+             (or (some
+                  (fn [[rid v]] (and (not= "browser" rid) (p/proc? v) (p/alive? v)))
+                  @procs)
+                 (and (contains? @procs "jvm")
+                      (not= :stopped (get-in @(:control atoms) [:members "jvm" :state])))))
+    (pool/sleep-ms! 300)
+    (recur)))
+Consider using:
+(while
+ (and (< (- (now) t0) 40000)
+      (or (some
+           (fn [[rid v]] (and (not= "browser" rid) (p/proc? v) (p/alive? v)))
+           @procs)
+          (and (contains? @procs "jvm")
+               (not= :stopped (get-in @(:control atoms) [:members "jvm" :state])))))
+ (pool/sleep-ms! 300))
+
+src/cohost_media/start.cljc:800:13 [style/apply-str] - Use `clojure.string/join` instead of recreating it.
+(apply str (map #(format "%02x" (bit-and % 255)) (.digest md)))
+Consider using:
+(clojure.string/join (map #(format "%02x" (bit-and % 255)) (.digest md)))
+
+src/cohost_media/start.cljc:896:3 [style/apply-str] - Use `clojure.string/join` instead of recreating it.
+(apply str (repeatedly n #(rand-nth "0123456789abcdef")))
+Consider using:
+(clojure.string/join (repeatedly n #(rand-nth "0123456789abcdef")))
+
+src/cohost_media/start.cljc:1356:31 [style/not-some-pred] - Use `not-any?` instead of recreating it.
+(not (some #{:jolt} hs))
+Consider using:
+(not-any? #{:jolt} hs)
+
+src/cohost_media/start.cljc:1361:47 [style/not-some-pred] - Use `not-any?` instead of recreating it.
+(not (some #{:glj} hs))
+Consider using:
+(not-any? #{:glj} hs)
+
+src/cohost_media/supervise.cljc:56:52 [style/eq-zero] - Use `zero?` instead of recreating it.
+(= 0 code)
+Consider using:
+(zero? code)
+
+src/cohost_media/tasks.cljc:83:100 [style/prefer-clj-math] - Use the `clojure.math` function instead of interop.
+Math/round
+Consider using:
+clojure.math/round
+
+src/cohost_media/tasks.cljc:139:47 [style/prefer-clj-string] - Use the `clojure.string` function instead of interop.
+(.endsWith f ".png")
+Consider using:
+(clojure.string/ends-with? f ".png")
+
+Linting took 7489ms, checked 21 files, 32 style warnings
