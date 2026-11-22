@@ -67,6 +67,28 @@ fleet template says `src test`.
 - [x] Step 1 templates in + kondo cache + commit
 - [x] Step 2 census (CENSUS.md @ f5a077e)
 - [~] Step 3 format pass committed (b52ceaf); boot check — see below
+- [~] Step 4 fix campaign: unused-import ✓ (e3a1ab8),
+  redundant-nested-call ✓ (c458be4), redefined-var ✓ (c03f558)
+- [x] Step 6 integrated-pipeline trial (3 real edits + exit-4) — below
+
+## Integrated pipeline trial (step 6, per the Nov 22 steer)
+
+Pipeline: clj-replace → clj-paren-repair → clj-kondo, per edit.
+
+| Edit | replace exit | repair == cljfmt fix | 2nd repair no-op | kondo before → after |
+|---|---|---|---|---|
+| start.cljc unused-import (drop BodyPublishers) | 0 | YES byte-for-byte | YES | 6e/29w → 6e/28w, finding gone |
+| phash.cljc redundant-nested-call | 0 | YES byte-for-byte | YES | info finding gone; file 0e/0w |
+| start.cljc redefined-var (display? split) | 0 (×2 replaces) | YES byte-for-byte | YES | 6e/28w → 6e/27w, finding gone |
+
+Exit-4 exercise (scratch file): old `(def n 255)` vs file `(def n
+0xFF)` → exit 4, file's exact text printed, file md5 UNCHANGED;
+retry with the printed text → exit 0, repair clean. Same for a
+comment-in-form near-match. One disagreement with the skill doc: its
+pinned deref case (`@a` vs `(deref a)`) exits 2 ("no match") under
+bb 1.13.229 here, not 4 as the skill's own verification recorded —
+near-match detection is environment-sensitive; the fail-closed
+property (no edit on non-zero exit) held in every case.
 - [ ] Step 4 fix campaign (via the integrated edit pipeline:
       clj-replace → clj-paren-repair → clj-kondo)
 - [ ] Step 6 gates + integrated pipeline trial
@@ -103,8 +125,10 @@ semantic change, and the demo broke.**
   `bb fmt` re-run (commit 07d4fac). **Form-tree diff vs pristine is
   now ZERO on all 21 files** — the pass is pure formatting, proven.
   `bb fmt-check` exits 0.
-- Confirmation boot on the repaired tree: see below (runs after this
-  note was banked).
+- Confirmation boot on the repaired tree (reduced hosts): reached
+  `{:new 10}` then `{:planned 10}` — stage-for-stage the control's
+  trajectory, the stages the sorted tree never reached. The format
+  pass is behaviorally exonerated; full-hosts run in flight.
 
 ## Step 3 boot check — the record so far (2026-11-22 evening)
 
