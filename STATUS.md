@@ -111,6 +111,17 @@ property (no edit on non-zero exit) held in every case.
    runtime (the glj member's media-server and watcher ARE
    media-impl code reached through this path, observed 2026-11-22).
    Each site carries the reason as a comment at the form.
+3. **Two `#_{:clj-kondo/ignore [:unused-private-var]}` site
+   suppressions** (start.cljc page-mime, seat-handler). Reason:
+   verified false positives — both vars ARE used, but only inside
+   reader-conditional forms, and kondo 2026.10.26's
+   unused-private-var does not count references inside `#?` forms.
+   Isolated repros (2026-11-22): a private var used only inside a
+   defn nested in `#?(:clj (do …))` is flagged; a private fn called
+   only from a `#?` arm is flagged. The other two vars in this class
+   (av-jolt C-NB-STREAMS, coordinator settled?) were true positives
+   — grep-total one occurrence each — and were DELETED, not
+   suppressed.
 
 ## Step 3 RESOLUTION (2026-11-22, ~22:20 ET)
 

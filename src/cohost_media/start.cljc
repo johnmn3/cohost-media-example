@@ -431,6 +431,11 @@
 ;; page's wire and blob traffic cross no HTTP hop to reach them.
 ;; ---------------------------------------------------------------------------
 
+;; kondo: page-mime IS used, inside out-file-resp below - but that defn
+;; nests in a #?(:clj (do ...)) form, and kondo's unused-private-var
+;; does not count references inside reader conditionals (repro in the
+;; lane STATUS, 2026-11-22).
+#_{:clj-kondo/ignore [:unused-private-var]}
 (def ^:private page-mime
      {"html" "text/html" "js" "text/javascript" "mjs" "text/javascript"
       "json" "application/json" "edn" "application/edn" "css" "text/css"
@@ -470,6 +475,10 @@
                             :body (.encodeToString (java.util.Base64/getEncoder) bs)
                             :body-as :b64}))))))
 
+;; kondo: seat-handler IS called, from start-browser-seat! - inside a
+;; reader-conditional arm, whose references kondo's unused-private-var
+;; does not count (repro in the lane STATUS, 2026-11-22).
+#_{:clj-kondo/ignore [:unused-private-var]}
 (defn- seat-handler
        "The browser seat's :handler for this run: gateway/seat-handler over the
    started gateway, then the run's output files. The handler runs on the boot
