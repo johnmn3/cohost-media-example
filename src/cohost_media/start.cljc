@@ -57,6 +57,9 @@
        #?(:clj (System/getenv k)
           :cljs (aget js/process.env k)))
 
+;; kondo: k is used in the :clj arm; unused-binding does not count a
+;; reference that appears in only some #? arms.
+#_{:clj-kondo/ignore [:unused-binding]}
 (defn- getprop
        "This runtime's property k (on the JVM, its system properties), or nil."
        [k]
@@ -339,6 +342,9 @@
 ;; recorded it, so the checks read the same bookkeeping.
 ;; ---------------------------------------------------------------------------
 
+;; kondo: every arg is used in the :clj arm; unused-binding does not
+;; count a reference that appears in only some #? arms.
+#_{:clj-kondo/ignore [:unused-binding]}
 (defn- spawn-child!
        "Start process child rid once (its next incarnation): through /bin/sh -c supervise's script, so the
    child's OS process is the program's own and its output lands in its log files; a waiter thread
@@ -477,17 +483,22 @@
 
 ;; kondo: seat-handler IS called, from start-browser-seat! - inside a
 ;; reader-conditional arm, whose references kondo's unused-private-var
-;; does not count (repro in the lane STATUS, 2026-11-22).
-#_{:clj-kondo/ignore [:unused-private-var]}
+;; does not count (repro in the lane STATUS, 2026-11-22); and its args
+;; run/procs are used in its :clj arm, which unused-binding likewise
+;; does not count.
+#_{:clj-kondo/ignore [:unused-private-var :unused-binding]}
 (defn- seat-handler
        "The browser seat's :handler for this run: gateway/seat-handler over the
    started gateway, then the run's output files. The handler runs on the boot
    seat (its server and the gateway live here): the :clj arm builds it."
-       [run atoms procs]
+       [run procs]
        #?(:clj (let [gw (gateway/seat-handler (get @procs "gateway"))]
                     (fn [req] (or (gw req) (out-file-resp (:out run) req))))
           :cljs (throw (ex-info "start: the browser seat's handler runs on the boot seat" {}))))
 
+;; kondo: every arg is used in the :clj arm; unused-binding does not
+;; count a reference that appears in only some #? arms.
+#_{:clj-kondo/ignore [:unused-binding]}
 (defn- start-browser-seat!
        "The browser member: a cohost :browser runtime executor (cohost.cljs-pool)
    over the run's page directory — the seat's server on the run's page port,
@@ -503,7 +514,7 @@
        [run atoms cfg procs child]
        #?(:clj
           (let [ex (cljs-pool/executor 1 (assoc (browser-args cfg)
-                                                :handler (seat-handler run atoms procs)))]
+                                                :handler (seat-handler run procs)))]
                (clojure.core/swap! procs assoc "browser" ex)
                (thread/spawn
                 (fn []
@@ -517,6 +528,9 @@
                ex)
           :cljs (throw (ex-info "start: the browser seat starts on the boot seat" {}))))
 
+;; kondo: every arg is used in the :clj arm; unused-binding does not
+;; count a reference that appears in only some #? arms.
+#_{:clj-kondo/ignore [:unused-binding]}
 (defn- start-node-seat!
        "The node member: a cohost :node runtime executor (cohost.cljs-pool) whose realm boots with
    the member's namespace graph (node-args' :load-ns) and whose require anchors at the app
@@ -798,6 +812,9 @@
             i (last (re-seq #"I:\s+(-?[0-9.]+) LUFS" err))]
            (some-> i second parse-double)))
 
+;; kondo: path is used in the :clj arm; unused-binding does not count a
+;; reference that appears in only some #? arms.
+#_{:clj-kondo/ignore [:unused-binding]}
 (defn sha256
       "A file's SHA-256, hex (in process: macOS has no sha256sum). The digest is the boot seat's
    own work: the :clj arm."
@@ -811,7 +828,7 @@
 
 (defn rid-of [owner] (when owner (first (str/split owner #"#"))))
 
-(defn check [run atoms state]
+(defn check [_run atoms state]
       (let [files (:files @(:library atoms))
             ix @(:index atoms)
             rts (pool/runtimes-of (:jobs atoms))
@@ -1053,6 +1070,9 @@
                       seen)
                  (finally (p/destroy-tree proc)))))))
 
+;; kondo: every arg is used in the :clj arm; unused-binding does not
+;; count a reference that appears in only some #? arms.
+#_{:clj-kondo/ignore [:unused-binding]}
 (defn browser-check!
       "Wait (up to timeout-ms) for the page's check (the app page in the browser seat's shell iframe, whose URL
    carries ?check=<page-check>, writes it into control :page-check); then a screenshot of the page

@@ -4,6 +4,9 @@
    folder's watcher. The implementation is the runtime's own — glojure's, in cohost-media.media-impl
    (the eveglj/media Go package) — resolved lazily: only a runtime that carries it ever loads it.")
 
+;; kondo: sym is used in the :default arm; unused-binding does not count
+;; a reference that appears in only some #? arms.
+#_{:clj-kondo/ignore [:unused-binding]}
 (defn- impl-fn
        "The runtime's media implementation var, when this runtime carries it."
        [sym]

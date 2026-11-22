@@ -10,6 +10,9 @@
               [cohost-media.state :as st]
               [cohost-media.work :as work]))
 
+;; kondo: sym is used in the :default arm; unused-binding does not count
+;; a reference that appears in only some #? arms.
+#_{:clj-kondo/ignore [:unused-binding]}
 (defn- native-fn
        "The native implementation's var, when this runtime carries it."
        [sym]
@@ -40,6 +43,9 @@
                       "-threads" "1" "-x264-params" "threads=1:sliced-threads=0"])
                  ["-c:a" "aac" "-b:a" "128k" "-ac" "2" "-ar" "48000" "-movflags" "+faststart" "-f" "mp4" out])))
 
+;; kondo: every destructured key is used in the :clj arm; unused-binding
+;; does not count a reference that appears in only some #? arms.
+#_{:clj-kondo/ignore [:unused-binding]}
 (defn- cli-transcode! [{:keys [path id kind out]}]
        #?(:clj
           (let [dest (em/output-path out :transcode id)
@@ -62,6 +68,9 @@
               (f job)
               (cli-transcode! job)))
 
+;; kondo: every destructured key is used in the :clj arm; unused-binding
+;; does not count a reference that appears in only some #? arms.
+#_{:clj-kondo/ignore [:unused-binding]}
 (defn- cli-pcm! [{:keys [path id window]}]
        #?(:clj
           (let [dest (em/pcm-path window id)]

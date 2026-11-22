@@ -29,6 +29,9 @@
                                    "-of" "compact=p=0" path)]
                 (str/split-lines (String. ^bytes out "UTF-8"))))))
 
+;; kondo: path is used in the :clj arm; unused-binding does not count a
+;; reference that appears in only some #? arms.
+#_{:clj-kondo/ignore [:unused-binding]}
 (defn run!
       "The meta job: parse the file with Tika, list its streams with ffprobe, record both."
       [{:keys [path]}]

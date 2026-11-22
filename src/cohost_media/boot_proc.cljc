@@ -84,6 +84,9 @@
                (.destroyForcibly p)
                nil))))
 
+;; kondo: x is used in the :clj arm; unused-binding does not count a
+;; reference that appears in only some #? arms.
+#_{:clj-kondo/ignore [:unused-binding]}
 (defn proc?
       "Is x a started process (a Proc)? Only the boot seat starts processes; on any other seat the
    answer is false, so a portable watch or kill step can hold pool entries of either kind."

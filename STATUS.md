@@ -122,6 +122,19 @@ property (no edit on non-zero exit) held in every case.
    (av-jolt C-NB-STREAMS, coordinator settled?) were true positives
    — grep-total one occurrence each — and were DELETED, not
    suppressed.
+4. **Thirteen `#_{:clj-kondo/ignore [:unused-binding]}` defn
+   suppressions** (av native-fn/cli-transcode!/cli-pcm!, media
+   impl-fn, boot-proc proc?, meta run!, start getprop/spawn-child!/
+   seat-handler/start-browser-seat!/start-node-seat!/sha256/
+   browser-check!). Reason: verified false positives of the same
+   family — every flagged binding IS used, in a `:clj`/`:default`
+   arm; kondo's unused-binding does not count a reference that
+   appears in only some `#?` arms (a binding used in EVERY arm, e.g.
+   start's getenv, is not flagged — the discriminator). The class's
+   four true positives were FIXED in code: gateway start! and member
+   serve! dropped unused `:as` bindings, start seat-handler dropped
+   its unused `atoms` param (+ call site), start check renamed its
+   unused `run` param to `_run`.
 
 ## Step 3 RESOLUTION (2026-11-22, ~22:20 ET)
 
@@ -148,7 +161,18 @@ semantic change, and the demo broke.**
 - Confirmation boot on the repaired tree (reduced hosts): reached
   `{:new 10}` then `{:planned 10}` — stage-for-stage the control's
   trajectory, the stages the sorted tree never reached. The format
-  pass is behaviorally exonerated; full-hosts run in flight.
+  pass is behaviorally exonerated.
+- Full-hosts run on the repaired tree (22:33–22:38): all six hosts
+  started, page check attempted, all 10 files found, all 10 jobs
+  planned — then the SAME claim-stage stall as the pristine control
+  (node/browser members still booting when the 90 s watchdog fired;
+  report `{:ok false, :checks {:index-complete false,
+  :browser-library-and-requeue false}}`). Step 3 verdict: **the app
+  boots and runs its machinery on the formatted tree identically to
+  pristine sources at every stage this box lets either reach**;
+  end-to-end completion is blocked by a pre-existing pin/box
+  condition (member startup vs the demo's own 90 s watchdog),
+  control-proven, not by any lane change.
 
 ## Step 3 boot check — the record so far (2026-11-22 evening)
 
