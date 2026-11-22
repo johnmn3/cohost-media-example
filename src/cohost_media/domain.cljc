@@ -14,8 +14,8 @@
 
    An atom here is a shared atom or its network reach: read-atom and swap-atom! (cohost.pool's) take
    either, and this namespace only names the four and opens them."
-    (:require [cohost-media.core :as em]
-              [cohost.pool :as pool]))
+    (:require [cohost.pool :as pool]
+              [cohost-media.core :as em]))
 
 (defn open-atoms
       "The domain at base and its atoms: {:domain :jobs :library :index :control}."

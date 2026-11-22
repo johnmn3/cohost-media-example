@@ -1,10 +1,10 @@
 (ns cohost-media.work
     "The jobs every host runs the same way — the index and the duplicate grouping — and what every job does with its
    result: the descriptor carries it, and the job swaps it into the file's library entry. Portable cljc."
-    (:require [cohost-media.domain :as domain]
+    (:require [cohost.pool :as pool]
+              [cohost-media.domain :as domain]
               [cohost-media.phash :as ph]
-              [cohost-media.state :as st]
-              [cohost.pool :as pool]))
+              [cohost-media.state :as st]))
 
 (defn record!
       "Job kind's result v for the file at path, swapped into the library; v."

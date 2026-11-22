@@ -18,9 +18,9 @@
    The libraries are found by their major (libavutil.so.59, libavutil.59.dylib) on the loader's path, in
    EVE_FFMPEG_LIB when it names a directory, and on macOS in Homebrew's and MacPorts' lib directories."
     (:require [clojure.string :as str]
+              [jolt.ffi :as ffi]
               [cohost-media.core :as em]
-              [cohost-media.work :as work]
-              [jolt.ffi :as ffi]))
+              [cohost-media.work :as work]))
 
 (def ^:private macos? (str/includes? (str/lower-case (or (System/getProperty "os.name") "")) "mac"))
 

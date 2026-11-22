@@ -16,17 +16,17 @@
    precedence silently preferred — and moved here when the page's sources became .cljc, so the
    namespace has one home again."
     (:refer-clojure :exclude [meta])
-    (:require #?@(:clj [[cohost.pool :as pool]
-                        [cohost-media.phash :as ph]
-                        [cohost-media.r128 :as r128]
-                        [cohost.region :as region]]
-                  :cljs [[cohost.pool :as pool :include-macros true]])
-              [clojure.string :as str]
+    (:require [clojure.string :as str]
               [cohost-media.av :as av]
               [cohost-media.core :as em]
               [cohost-media.media :as media]
               [cohost-media.state :as st]
-              [cohost-media.work :as work]))
+              [cohost-media.work :as work]
+              #?@(:clj [[cohost.pool :as pool]
+                        [cohost-media.phash :as ph]
+                        [cohost-media.r128 :as r128]
+                        [cohost.region :as region]]
+                  :cljs [[cohost.pool :as pool :include-macros true]])))
 
 (pool/deftask index [job] (work/index! job))
 

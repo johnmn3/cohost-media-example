@@ -8,9 +8,9 @@
    Everything it knows is in the domain, so when the supervisor restarts it, it carries on where it stopped.
 
    Portable cljc over cohost.pool: the pools are the only surface it touches."
-    (:require [cohost-media.core :as em]
-              [cohost-media.domain :as domain]
-              [cohost.pool :as pool]))
+    (:require [cohost.pool :as pool]
+              [cohost-media.core :as em]
+              [cohost-media.domain :as domain]))
 
 (def max-failures 3)
 

@@ -9,8 +9,8 @@
 (ns cohost-media.boot
     "The boot program's host entry: cohost-media.start is the program; this namespace installs
    the seat's adapter and exits with start/dispatch's answer."
-    (:require [cohost-media.start :as start]
-              [cohost.hosts.auto]))
+    (:require [cohost.hosts.auto]
+              [cohost-media.start :as start]))
 
 #?(:clj
    (defn -main [& [cmd & args]]

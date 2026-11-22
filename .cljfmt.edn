@@ -8,10 +8,17 @@
 ; drift and fails the fleet config-diff check.
 ; v1 is deliberately the cljfmt defaults plus ns sorting: the Phase 1
 ; retro earns every non-default entry, recorded here with its reason.
+; LANE DEVIATION (cohost-media-example, 2026-11-22, proposed to the
+; fleet in RETRO.md): :sort-ns-references? set to false. Sorting
+; :require lists changes namespace LOAD ORDER, which is semantics in
+; Clojure, not formatting: with sorting on, the format pass reordered
+; cohost.pool / cohost.hosts.auto out of first position in 10 files
+; and the demo's coordinator never planned a job (control run on
+; pristine sources planned all 10). Form-tree diff proof in STATUS.md.
 {:remove-surrounding-whitespace? true
  :remove-trailing-whitespace? true
  :remove-consecutive-blank-lines? true
  :insert-missing-whitespace? true
- :sort-ns-references? true
+ :sort-ns-references? false
  :align-associative? false
  :indents {}}

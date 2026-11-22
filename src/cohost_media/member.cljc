@@ -12,13 +12,13 @@
    Prints EDN lines {:step ...}."
     (:require [clojure.edn :as edn]
               [clojure.string :as str]
-              [cohost-media.coordinator :as coord]
+              [cohost.pool :as pool]
               [cohost-media.core :as em]
+              [cohost-media.coordinator :as coord]
               [cohost-media.domain :as domain]
               [cohost-media.media :as media]
               [cohost-media.state :as st]
-              [cohost-media.tasks :as tasks]
-              [cohost.pool :as pool]))
+              [cohost-media.tasks :as tasks]))
 
 (defn ctx [] @st/ctx)
 

@@ -9,9 +9,9 @@
 
      clojure -m cohost-media.gateway <base>"
     (:require [clojure.string :as str]
+              [cohost.pool :as pool]
               [cohost-media.domain :as domain]
-              [cohost-media.serve :as serve]
-              [cohost.pool :as pool]))
+              [cohost-media.serve :as serve]))
 
 (defn start!
       "Start the gateway over atoms' domain and note it in the control atom. Answers serve's server map

@@ -26,21 +26,21 @@
    (cohost-media.boot-fs, cohost-media.boot-proc, cohost.pool); the seat's own leaves — its
    environment and its own process, its sockets and the browser's DevTools protocol — are
    the :clj arms below and in the facility namespaces."
-    (:require ;; the browser seat's driver is a JVM-seat facility (its server
+    (:require [cohost.pool :as pool]
+              [cohost.thread :as thread]
+            ;; the browser seat's driver is a JVM-seat facility (its server
             ;; and browser live in this process): the :clj arm only
-     #?(:clj [cohost.cljs-pool :as cljs-pool])
-     [clojure.data.json :as json]
-     [clojure.edn :as edn]
-     [clojure.string :as str]
-     [cohost-media.boot-fs :as fs]
-     [cohost-media.boot-proc :as p]
-     [cohost-media.core :as em]
-     [cohost-media.domain :as domain]
-     [cohost-media.gateway :as gateway]
-     [cohost-media.member :as member]
-     [cohost-media.supervise :as sv]
-     [cohost.pool :as pool]
-     [cohost.thread :as thread])
+              #?(:clj [cohost.cljs-pool :as cljs-pool])
+              [cohost-media.boot-fs :as fs]
+              [cohost-media.boot-proc :as p]
+              [clojure.data.json :as json]
+              [clojure.edn :as edn]
+              [clojure.string :as str]
+              [cohost-media.core :as em]
+              [cohost-media.domain :as domain]
+              [cohost-media.gateway :as gateway]
+              [cohost-media.member :as member]
+              [cohost-media.supervise :as sv])
     #?(:clj (:import [java.net URI URLDecoder]
                      [java.net.http HttpClient HttpRequest HttpRequest$BodyPublishers HttpResponse$BodyHandlers WebSocket WebSocket$Listener])))
 
