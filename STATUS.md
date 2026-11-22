@@ -75,7 +75,36 @@ fleet template says `src test`.
 
 ## Named exceptions (suppressions / disables)
 
-(none yet)
+1. **`.cljfmt.edn` deviates from the fleet template in exactly one
+   key: `:sort-ns-references? false`** (template: true). Reason:
+   sorting :require lists changes namespace load order — semantics,
+   not formatting. Proven below (step 3 resolution). Proposed as a
+   fleet template change in RETRO.md.
+
+## Step 3 RESOLUTION (2026-11-22, ~22:20 ET)
+
+**Defect (re-derived, provenance below): the fleet template's
+`:sort-ns-references? true` made the "pure formatting" pass a
+semantic change, and the demo broke.**
+
+- Control: pristine e096566, reduced hosts — files became :new and
+  the coordinator planned all 10 jobs (`{:planned 10}`) within ~2 min
+  of run start. (It still failed :index-complete later: planned jobs
+  were never claimed and the 90 s watchdog aborted — a second,
+  separate stall that also affects pristine sources on this box;
+  recorded honestly, not attributed to the format pass.)
+- Formatted (b52ceaf): progress stayed {} in two runs — the :new /
+  planning stage was never reached.
+- Form-tree diff (reader-normalized, regexes stringified) between
+  pristine and b52ceaf: the ONLY diffs in all 21 files were :require
+  ORDER inside the ns forms of 10 files (cohost.pool /
+  cohost.hosts.auto sorted out of first position). Nothing else.
+- Fix: sources restored from f5a077e, .cljfmt.edn deviation above,
+  `bb fmt` re-run (commit 07d4fac). **Form-tree diff vs pristine is
+  now ZERO on all 21 files** — the pass is pure formatting, proven.
+  `bb fmt-check` exits 0.
+- Confirmation boot on the repaired tree: see below (runs after this
+  note was banked).
 
 ## Step 3 boot check — the record so far (2026-11-22 evening)
 
