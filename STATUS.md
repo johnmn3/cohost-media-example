@@ -75,11 +75,11 @@ fleet template says `src test`.
 
 Pipeline: clj-replace → clj-paren-repair → clj-kondo, per edit.
 
-| Edit | replace exit | repair == cljfmt fix | 2nd repair no-op | kondo before → after |
-|---|---|---|---|---|
-| start.cljc unused-import (drop BodyPublishers) | 0 | YES byte-for-byte | YES | 6e/29w → 6e/28w, finding gone |
-| phash.cljc redundant-nested-call | 0 | YES byte-for-byte | YES | info finding gone; file 0e/0w |
-| start.cljc redefined-var (display? split) | 0 (×2 replaces) | YES byte-for-byte | YES | 6e/28w → 6e/27w, finding gone |
+| Edit                                           | replace exit    | repair == cljfmt fix | 2nd repair no-op | kondo before → after          |
+| ---------------------------------------------- | --------------- | -------------------- | ---------------- | ----------------------------- |
+| start.cljc unused-import (drop BodyPublishers) | 0               | YES byte-for-byte    | YES              | 6e/29w → 6e/28w, finding gone |
+| phash.cljc redundant-nested-call               | 0               | YES byte-for-byte    | YES              | info finding gone; file 0e/0w |
+| start.cljc redefined-var (display? split)      | 0 (×2 replaces) | YES byte-for-byte    | YES              | 6e/28w → 6e/27w, finding gone |
 
 Exit-4 exercise (scratch file): old `(def n 255)` vs file `(def n
 0xFF)` → exit 4, file's exact text printed, file md5 UNCHANGED;
@@ -89,6 +89,7 @@ pinned deref case (`@a` vs `(deref a)`) exits 2 ("no match") under
 bb 1.13.229 here, not 4 as the skill's own verification recorded —
 near-match detection is environment-sensitive; the fail-closed
 property (no edit on non-zero exit) held in every case.
+
 - [ ] Step 4 fix campaign (via the integrated edit pipeline:
       clj-replace → clj-paren-repair → clj-kondo)
 - [ ] Step 6 gates + integrated pipeline trial
@@ -182,6 +183,7 @@ plus-one ×2, apply-str ×2 (start), not-some-pred ×2, prefer-condp,
 loop-empty-when ×3 (rewritten as `while`).
 
 Disabled at site with reasons (10):
+
 - `lint/empty-loop-in-fn` ×5 (start ×4, page ×1): the loops sit in
   ANONYMOUS watcher fns; loop/recur is the constant-stack recursion
   and direct self-recursion would overflow. (Placement note: the
@@ -207,6 +209,7 @@ Carve at census: 18. After the kondo campaign it reported 28 (the
 deftask vars became visible to its analysis; the two kondo-deleted
 vars dropped off). Dispositions, each grep-verified across the repo
 AND the composed eve/cohost trees:
+
 - DELETED (7, no caller anywhere, no name-resolution reference):
   start/alive? (superseded by babashka.process/alive?, which the
   same file uses), supervise/children, state/control,
@@ -222,6 +225,33 @@ AND the composed eve/cohost trees:
   (`edn/read-string "[%s]"`) — `#` comments crash it
   ("No dispatch macro for:"); comments must be `;;`.
 - `bb carve-report` now exits 0.
+
+## Gates (step 6) + docs (step 7)
+
+- **Pre-commit hook**: `.githooks/pre-commit` (cljfmt check +
+  clj-kondo on staged .clj/.cljs/.cljc files, repo configs). Enable
+  per clone: `git config core.hooksPath .githooks` (done in this
+  clone). The full gate stays `bb lint`.
+- **CI**: the repo has NO CI home (no `.github/`) — nothing added;
+  inventing one is out of lane scope.
+- **lint-docs leg** adopted from templates v2: `bb lint` now depends
+  on lint-docs (`dprint check`) as well.
+- **Gate check on the splint batch** (the lint-clean ≠ compiling
+  lesson): reduced demo boot (`bb demo --hosts bb,jvm,glj,jolt`) on
+  the post-splint tree reached `{:planned 10}` — all ten files
+  planned, same as the formatted-tree run; the while/condp/inc
+  rewrites boot clean.
+- **dprint 0.50.2** (GitHub release binary) with pinned `dprint.json`:
+  plugins `https://plugins.dprint.dev/markdown-0.19.0.wasm`,
+  `https://plugins.dprint.dev/json-0.21.1.wasm`,
+  `https://plugins.dprint.dev/toml-0.7.0.wasm`; markdown textWrap
+  maintain. Excludes: the untracked eve/ + cohost.cljc/ sibling
+  trees, target/, node_modules, .clj-kondo/ (cache), census-raw/
+  (the untouched census evidence), package-lock.json
+  (machine-generated). Docs formatted as their own commit;
+  `dprint check` exits 0. (CENSUS.md's Markdown was normalized by
+  the pass; its data is unchanged and the raw evidence in
+  census-raw/ is excluded and untouched.)
 
 ## Step 3 RESOLUTION (2026-11-22, ~22:20 ET)
 

@@ -19,19 +19,19 @@ outside the gate until the fleet decides how `.glj` is covered.
 
 204 findings: **99 errors · 67 warnings · 38 info**.
 
-| count | level | linter | classification |
-|---:|---|---|---|
-| 99 | error | unresolved-symbol | see breakdown below — macro/branch resolution, not typos |
-| 37 | warning | unused-binding | real |
-| 36 | info | redundant-str-call | real (info: does not fail the gate) |
-| 12 | warning | unused-namespace | real |
-| 8 | warning | unresolved-namespace | reader-conditional aliases (js, pool, tasks, em, h, str, reagami, System) |
-| 4 | warning | constant-condition | needs per-site verdict (av.cljc:58,77; media.cljc:17,25) |
-| 4 | warning | unused-private-var | real — but see Carve note on entry points |
-| 1 | warning | unused-import | real |
-| 1 | warning | redefined-var | real |
-| 1 | info | redundant-nested-call | real |
-| 1 | info | unused-excluded-var | real |
+| count | level   | linter                | classification                                                            |
+| ----: | ------- | --------------------- | ------------------------------------------------------------------------- |
+|    99 | error   | unresolved-symbol     | see breakdown below — macro/branch resolution, not typos                  |
+|    37 | warning | unused-binding        | real                                                                      |
+|    36 | info    | redundant-str-call    | real (info: does not fail the gate)                                       |
+|    12 | warning | unused-namespace      | real                                                                      |
+|     8 | warning | unresolved-namespace  | reader-conditional aliases (js, pool, tasks, em, h, str, reagami, System) |
+|     4 | warning | constant-condition    | needs per-site verdict (av.cljc:58,77; media.cljc:17,25)                  |
+|     4 | warning | unused-private-var    | real — but see Carve note on entry points                                 |
+|     1 | warning | unused-import         | real                                                                      |
+|     1 | warning | redefined-var         | real                                                                      |
+|     1 | info    | redundant-nested-call | real                                                                      |
+|     1 | info    | unused-excluded-var   | real                                                                      |
 
 ### The 99 unresolved-symbol errors, by mechanism (verified by reading the sites)
 
@@ -57,25 +57,25 @@ and a fleet-template proposal — never suppression of the findings.
 
 32 findings:
 
-| count | rule |
-|---:|---|
-| 5 | lint/empty-loop-in-fn |
-| 4 | style/prefer-clj-math |
-| 3 | lint/loop-empty-when |
-| 3 | style/apply-str |
-| 2 | lint/into-literal |
-| 2 | lint/let-if |
-| 2 | style/plus-one |
-| 2 | style/not-some-pred |
-| 1 | naming/conversion-functions |
-| 1 | style/filter-vec-filterv |
-| 1 | lint/let-when |
-| 1 | style/redundant-nested-call |
-| 1 | style/nested-multiply |
-| 1 | style/prefer-condp |
-| 1 | style/useless-do |
-| 1 | style/eq-zero |
-| 1 | style/prefer-clj-string |
+| count | rule                        |
+| ----: | --------------------------- |
+|     5 | lint/empty-loop-in-fn       |
+|     4 | style/prefer-clj-math       |
+|     3 | lint/loop-empty-when        |
+|     3 | style/apply-str             |
+|     2 | lint/into-literal           |
+|     2 | lint/let-if                 |
+|     2 | style/plus-one              |
+|     2 | style/not-some-pred         |
+|     1 | naming/conversion-functions |
+|     1 | style/filter-vec-filterv    |
+|     1 | lint/let-when               |
+|     1 | style/redundant-nested-call |
+|     1 | style/nested-multiply       |
+|     1 | style/prefer-condp          |
+|     1 | style/useless-do            |
+|     1 | style/eq-zero               |
+|     1 | style/prefer-clj-string     |
 
 ## Carve — exit 1 (report mode fails on findings, as the gate requires)
 
