@@ -18,7 +18,12 @@
               [cohost-media.domain :as domain]
               [cohost-media.media :as media]
               [cohost-media.state :as st]
-              [cohost-media.tasks :as tasks]))
+              ;; kondo: this require is load-bearing WITHOUT an alias
+              ;; use: loading cohost-media.tasks registers its deftask
+              ;; task vars in the pool registry of every member realm,
+              ;; and serve! names it in the member's :requires. Removing
+              ;; it would silently unregister the app's tasks.
+              #_{:clj-kondo/ignore [:unused-namespace]} [cohost-media.tasks :as tasks]))
 
 (defn ctx [] @st/ctx)
 

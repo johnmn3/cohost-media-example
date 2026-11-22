@@ -33,7 +33,9 @@
               #?(:clj [cohost.cljs-pool :as cljs-pool])
               [cohost-media.boot-fs :as fs]
               [cohost-media.boot-proc :as p]
-              [clojure.data.json :as json]
+              ;; kondo: the json alias is used only inside #? arms
+              ;; below; unused-namespace does not count those.
+              #_{:clj-kondo/ignore [:unused-namespace]} [clojure.data.json :as json]
               [clojure.edn :as edn]
               [clojure.string :as str]
               [cohost-media.core :as em]

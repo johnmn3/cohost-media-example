@@ -153,6 +153,26 @@ property (no edit on non-zero exit) held in every case.
    unconditioned JVM/host core names fail the cljs pass), and the
    page never runs as clj (js-obj fails the clj pass). Each site is
    commented with its direction.
+7. **Twelve entry-level `#_{:clj-kondo/ignore [:unused-namespace]}`
+   discards** in ns forms (av ×3, boot-fs, boot-proc, meta ×2,
+   start json, tasks ×3, member tasks). Reason: every flagged alias
+   is used, but only inside `#?` arms (grep counts recorded in the
+   campaign notes); member's tasks require is additionally a
+   load-effect registration require (its deftask vars register in
+   every member realm at load; serve! names it in :requires) —
+   removing it would silently unregister the app's tasks. Reason
+   comments sit at each ns form.
+8. **Seven `#_{:clj-kondo/ignore [:unused-binding]}` discards** on
+   tasks.cljc deftask forms (meta, phash, loudness, thumb, sheet,
+   tags, waveform — 13 bindings): all used in exactly one `#?` arm.
+9. **Six `#_{:clj-kondo/ignore [:unresolved-namespace]}` discards**
+   (page ×5 forms covering js/pool/tasks/em/h/str/reagami, av-jolt
+   System). Reason: the page's requires live under `#?@(:cljs …)`
+   in its ns form, which kondo's cljc pass does not register (and
+   reagami is an Eve-side cljs dep outside this repo's lint
+   classpath); av-jolt's System is the jolt host's class surface.
+   Kondo reports this linter once per alias at its first use, so one
+   discard per alias suffices — verified empirically.
 
 ## Step 3 RESOLUTION (2026-11-22, ~22:20 ET)
 

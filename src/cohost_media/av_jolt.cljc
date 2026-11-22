@@ -22,6 +22,9 @@
               [cohost-media.core :as em]
               [cohost-media.work :as work]))
 
+;; kondo: System here is the jolt host's class surface, which
+;; kondo's cljc pass reads as an unresolved namespace.
+#_{:clj-kondo/ignore [:unresolved-namespace]}
 (def ^:private macos? (str/includes? (str/lower-case (or (System/getProperty "os.name") "")) "mac"))
 
 (def ^:private releases

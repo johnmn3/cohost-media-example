@@ -5,9 +5,11 @@
    As a .cljc the facility is the :clj arm: Tika is a JVM library, and on a JS seat run! answers
    the same 'JVM facility' error cohost-media.tasks' own :cljs arm gives."
     (:refer-clojure :exclude [run!])
-    (:require [clojure.string :as str]
+    ;; kondo: the str and work aliases are used only inside #? arms
+    ;; below; unused-namespace does not count those references.
+    (:require #_{:clj-kondo/ignore [:unused-namespace]} [clojure.string :as str]
               #?(:clj [clojure.java.io :as io])
-              [cohost-media.work :as work])
+              #_{:clj-kondo/ignore [:unused-namespace]} [cohost-media.work :as work])
     #?(:clj (:import [org.apache.tika Tika]
                      [org.apache.tika.metadata Metadata]
                      [org.apache.tika.parser AutoDetectParser ParseContext]

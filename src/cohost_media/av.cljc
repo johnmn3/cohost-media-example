@@ -5,10 +5,12 @@
    program hands the pool), the runtime's FFmpeg-FFI implementation answers instead — jolt's, in
    cohost-media.av-jolt, resolved lazily: only a runtime that carries it ever loads it. Which ran is
    recorded in the result (:by :transcode-native / :transcode-cli, :pcm-native), as before."
-    (:require [clojure.string :as str]
-              [cohost-media.core :as em]
+    ;; kondo: the str, em and work aliases are used only inside #?
+    ;; arms below; unused-namespace does not count those references.
+    (:require #_{:clj-kondo/ignore [:unused-namespace]} [clojure.string :as str]
+              #_{:clj-kondo/ignore [:unused-namespace]} [cohost-media.core :as em]
               [cohost-media.state :as st]
-              [cohost-media.work :as work]))
+              #_{:clj-kondo/ignore [:unused-namespace]} [cohost-media.work :as work]))
 
 ;; kondo: sym is used in the :default arm; unused-binding does not count
 ;; a reference that appears in only some #? arms.

@@ -28,12 +28,19 @@
                          [cohost-media.tasks :as tasks]
                          [reagami.core :as reagami])]))
 
+;; kondo: js is the ClojureScript host namespace; the cljc pass
+;; cannot resolve it. This page compiles only as ClojureScript.
+#_{:clj-kondo/ignore [:unresolved-namespace]}
 (defn- now [] (js/Date.now))
 
 ;; ===========================================================================
 ;; The runtime (workers)
 ;; ===========================================================================
 
+;; kondo: the pool, tasks and em aliases are required under
+;; #?@(:cljs ...) in the ns form; kondo's cljc pass does not register
+;; them. They resolve when the page compiles as ClojureScript.
+#_{:clj-kondo/ignore [:unresolved-namespace]}
 (defn- requeue-in!
        "Job kind of the file at path submitted again, from this runtime: one submission through the pool
    (a starved submission takes a turn), then the file's entry pointed at the new descriptor. Its id."
@@ -53,6 +60,9 @@
                                                                                                     :by (:rid dh)}))))
             id))
 
+;; kondo: the h alias (cohost.thread-host) is required under
+;; #?@(:cljs ...) in the ns form; see the note at requeue-in!.
+#_{:clj-kondo/ignore [:unresolved-namespace]}
 (defn runtime-main
       "The runtime's entry (a worker): join, serve the :browser pool on threads of its own, answer the page."
       [{:keys [reply]}]
@@ -169,6 +179,9 @@
 
 (defonce state (atom {:polls 0 :requeues {} :progress [] :lib {:files {}} :feed () :since {}}))
 
+;; kondo: the str alias is required under #?@(:cljs ...) in the ns
+;; form; see the note at requeue-in!.
+#_{:clj-kondo/ignore [:unresolved-namespace]}
 (defn- rid-of [owner] (when owner (first (str/split (str owner) #"#"))))
 
 (defn- thread-of [owner] (when owner (second (str/split (str owner) #"#"))))
@@ -475,6 +488,9 @@
                               " · this browser " (cond joined "joined" (:runtime @state) "joining" :else "a view only")
                               " · sweep " polls)]]]))
 
+;; kondo: reagami is required under #?@(:cljs ...) in the ns form -
+;; and is an Eve-side cljs dep, not on this repo's lint classpath.
+#_{:clj-kondo/ignore [:unresolved-namespace]}
 (defn- render! [] (reagami/render (.querySelector js/document "#app") [app]))
 
 (defn- watch-requeues!

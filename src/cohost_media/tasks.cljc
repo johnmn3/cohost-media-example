@@ -16,22 +16,28 @@
    precedence silently preferred — and moved here when the page's sources became .cljc, so the
    namespace has one home again."
     (:refer-clojure :exclude [meta])
-    (:require [clojure.string :as str]
-              [cohost-media.av :as av]
-              [cohost-media.core :as em]
-              [cohost-media.media :as media]
-              [cohost-media.state :as st]
-              [cohost-media.work :as work]
-              #?@(:clj [[cohost.pool :as pool]
-                        [cohost-media.phash :as ph]
-                        [cohost-media.r128 :as r128]
-                        [cohost.region :as region]]
-                  :cljs [[cohost.pool :as pool :include-macros true]])))
+    (:require ;; kondo: the str, em and st aliases are used only inside
+              ;; #? arms (several inside deftask bodies); unused-namespace
+              ;; does not count those references.
+     #_{:clj-kondo/ignore [:unused-namespace]} [clojure.string :as str]
+     [cohost-media.av :as av]
+     #_{:clj-kondo/ignore [:unused-namespace]} [cohost-media.core :as em]
+     [cohost-media.media :as media]
+     #_{:clj-kondo/ignore [:unused-namespace]} [cohost-media.state :as st]
+     [cohost-media.work :as work]
+     #?@(:clj [[cohost.pool :as pool]
+               [cohost-media.phash :as ph]
+               [cohost-media.r128 :as r128]
+               [cohost.region :as region]]
+         :cljs [[cohost.pool :as pool :include-macros true]])))
 
 (pool/deftask index [job] (work/index! job))
 
 (pool/deftask group [job] (work/group! job))
 
+;; kondo: job is used in the :default arm; unused-binding does not
+;; count a reference that appears in only some #? arms.
+#_{:clj-kondo/ignore [:unused-binding]}
 (pool/deftask meta [job]
               #?(:cljs (throw (ex-info "meta is a JVM facility" {}))
                  :default ((requiring-resolve 'cohost-media.meta/run!) job)))
@@ -48,6 +54,9 @@
 #?(:clj
    (defn- ffmpeg [& args] (apply sh "ffmpeg" "-nostdin" "-v" "error" "-y" args)))
 
+;; kondo: path and kind are used in the :clj arm; unused-binding does
+;; not count a reference that appears in only some #? arms.
+#_{:clj-kondo/ignore [:unused-binding]}
 (pool/deftask phash [{:keys [path kind]}]
               #?(:clj
                  (let [{:keys [exit out err]} (apply ffmpeg (concat (when (= :video kind) ["-ss" "1"])
@@ -73,6 +82,9 @@
                (dotimes [i (alength xs)] (aset xs i (double (.get fb i))))
                xs)))
 
+;; kondo: path is used in the :clj arm; unused-binding does not count
+;; a reference that appears in only some #? arms.
+#_{:clj-kondo/ignore [:unused-binding]}
 (pool/deftask loudness [{:keys [path]}]
               #?(:clj
                  (let [pcm (get-in @(st/library) [:files path :results :pcm])]
@@ -111,6 +123,9 @@
 
     (defn- join [& xs] (apply (.-join node-path) xs))))
 
+;; kondo: the destructured keys are used in the :cljs arm;
+;; unused-binding does not count a reference in only some #? arms.
+#_{:clj-kondo/ignore [:unused-binding]}
 (pool/deftask thumb [{:keys [path id kind out]}]
               #?(:cljs
                  (let [dest (em/output-path out :thumb id)
@@ -124,6 +139,9 @@
                           (.then (fn [^js info] (work/record! path :thumb {:path dest :width (.-width info) :height (.-height info)})))))
                  :default (throw (ex-info "thumb is an npm task" {}))))
 
+;; kondo: the destructured keys are used in the :cljs arm;
+;; unused-binding does not count a reference in only some #? arms.
+#_{:clj-kondo/ignore [:unused-binding]}
 (pool/deftask sheet [{:keys [path id out]}]
               #?(:cljs
                  (let [dest (em/output-path out :sheet id)
@@ -150,6 +168,9 @@
                                                                                 :tiles (count tiles)}))))))
                  :default (throw (ex-info "sheet is an npm task" {}))))
 
+;; kondo: path is used in the :cljs arm; unused-binding does not
+;; count a reference that appears in only some #? arms.
+#_{:clj-kondo/ignore [:unused-binding]}
 (pool/deftask tags [{:keys [path]}]
               #?(:cljs
                  (-> (.parseFile mm path)
@@ -193,6 +214,9 @@
 
     (defn- fmt [x] (/ (js/Math.round (* 100 x)) 100))))
 
+;; kondo: path is used in the :cljs arm; unused-binding does not
+;; count a reference that appears in only some #? arms.
+#_{:clj-kondo/ignore [:unused-binding]}
 (pool/deftask waveform
               "The waveform of a file's audio, drawn in the browser: the loudness job's peaks (0..1, one per hundredth of the
   file) as the points of a mirrored polygon in a 100×20 box, written into the library."
