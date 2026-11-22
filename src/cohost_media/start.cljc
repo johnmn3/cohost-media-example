@@ -80,26 +80,26 @@
        #?(:clj (str (java.time.LocalDateTime/now))
           :cljs (.toISOString (js/Date.))))
 
-(def eve-dir (str (fs/absolutize ".")))
-(def app-dir (str (fs/path eve-dir "capstone" "cohost-media")))
+(def eve-dir (fs/absolutize "."))
+(def app-dir (fs/path eve-dir "capstone" "cohost-media"))
 ;; kondo: slurp is a clojure.core name the cljs analysis pass cannot
 ;; resolve; this boot program never runs as ClojureScript.
 #_{:clj-kondo/ignore [:unresolved-symbol]}
-(def hosts-edn (edn/read-string (slurp (str (fs/path eve-dir "hosts.edn")))))
+(def hosts-edn (edn/read-string (slurp (fs/path eve-dir "hosts.edn"))))
 
 (def cohost-src
      "cohost's sources: the members load the cohost surface (cohost.pool above all) from them, as the
    boot program does — COHOST_HOME's src, else the sibling cohost.cljc clone the boot task's own
    rule names. Every member classpath (roots) and the page's build carry it."
-     (str (fs/path (or (getenv "COHOST_HOME") (fs/path eve-dir ".." "cohost.cljc")) "src")))
+     (fs/path (or (getenv "COHOST_HOME") (fs/path eve-dir ".." "cohost.cljc")) "src"))
 
 (defn now [] (pool/now-ms))
 (defn log [& xs] (println (str "[cohost-media " #?(:clj (java.time.LocalTime/now) :cljs (.toLocaleTimeString (js/Date.))) "]") (str/join " " xs)) (flush))
 
 (defn roots [host & more]
-      (str/join ":" (concat [(str (fs/path eve-dir "src")) cohost-src]
+      (str/join ":" (concat [(fs/path eve-dir "src") cohost-src]
                             (map #(str (fs/path eve-dir %)) (get hosts-edn host))
-                            [(str (fs/path app-dir "src"))]
+                            [(fs/path app-dir "src")]
                             (map #(str (fs/path app-dir %)) more))))
 
 (defn find-tools
@@ -174,7 +174,7 @@
    window where a GUI session exists (gui-session?) and runs headless where none does."
       [cfg]
       {:seat :browser
-       :bootstream (str (fs/path (:page cfg) "shell.html"))
+       :bootstream (fs/path (:page cfg) "shell.html")
        :server {:port (:page-port cfg)}
        :chrome {:bin (:chrome tools)
                 :headless (not (gui-session?))}})
@@ -188,7 +188,7 @@
    app's: the node seat loads them before any namespace the app names.)"
       []
       {:seat :node
-       :require-root (str app-dir)
+       :require-root app-dir
        :load-ns '[cohost-media.member]})
 
 (defn member-cmd
@@ -213,7 +213,7 @@
                                 (str "http://127.0.0.1:" (:gateway-port cfg) "/gw")
                                 (:api-key cfg)])}
                  :glj
-                 {:cmd (concat [(str (fs/path app-dir "target" "glj-cohost-media" "glj-eve"))
+                 {:cmd (concat [(fs/path app-dir "target" "glj-cohost-media" "glj-eve")
                                 "-e"
                                 (str "(require 'eve.host-completion) (require 'cohost-media.member) "
                                      "(apply cohost-media.member/-main *command-line-args*)")]
@@ -250,7 +250,7 @@
    the node member in its seat's node process, which this process starts and owns: their
    :cmd names what runs, for the record."
       [run cfg hosts]
-      (let [logs (str (fs/path (:dir run) "logs"))]
+      (let [logs (fs/path (:dir run) "logs")]
            (into {"gateway" {:host :gateway :member? false :wait [] :logs logs :dir eve-dir :env {}
                              :cmd ["in-process" "cohost-media.gateway"]}}
                  (map (fn [h]
@@ -292,7 +292,7 @@
       (when-not (contains? @encoders "libx264")
                 (throw (ex-info (str "cohost-media: the ffmpeg on PATH has no libx264 encoder; the demo and every transcode are H.264 "
                                      "(an ffmpeg built with libx264: Homebrew's, a distribution's ffmpeg package)") {})))
-      (let [f (fn [n] (str (fs/path dir n)))
+      (let [f (fn [n] (fs/path dir n))
         ;; Vorbis by libvorbis where the build has it, else ffmpeg's own encoder (experimental, stereo only)
             vorbis (if (contains? @encoders "libvorbis") ["-c:a" "libvorbis"] ["-c:a" "vorbis" "-strict" "-2" "-ac" "2"])]
            (ffmpeg! "-f" "lavfi" "-i" "testsrc=size=1280x720:rate=25:duration=10" "-f" "lavfi" "-i" "sine=frequency=440:duration=10"
@@ -644,12 +644,12 @@
 (defn new-run [opts]
       (let [stamp (stamp-now)
             stamp (str/replace (subs stamp 0 (min 23 (count stamp))) #"[:.]" "-")
-            dir (str (fs/path (fs/home) ".cohost-media" "runs" stamp))
-            window (str (fs/path (if (fs/directory? "/dev/shm") "/dev/shm" (fs/temp-dir)) "cohost-media" stamp))]
+            dir (fs/path (fs/home) ".cohost-media" "runs" stamp)
+            window (fs/path (if (fs/directory? "/dev/shm") "/dev/shm" (fs/temp-dir)) "cohost-media" stamp)]
            (fs/create-dirs (fs/path dir "logs"))
            (fs/create-dirs (fs/path dir "out"))
            (fs/create-dirs window)
-           {:dir dir :base (str (fs/path dir "d")) :out (str (fs/path dir "out")) :window window :opts opts}))
+           {:dir dir :base (fs/path dir "d") :out (fs/path dir "out") :window window :opts opts}))
 
 (defn descs [atoms] (pool/descriptors-of (:jobs atoms)))
 
@@ -944,7 +944,7 @@
       (let [cfg {:media-port (free-port)
                  :gateway-port (free-port)
                  :page-port (free-port)
-                 :page (str (fs/path (:dir run) "page"))
+                 :page (fs/path (:dir run) "page")
                  :watch (when (some #{:glj} hosts) media-dir)
                  :domain-id "cohost-media"
                  :api-key (random-hex 32)
@@ -974,11 +974,11 @@
            ;; kondo: spit is a clojure.core name the cljs analysis pass
            ;; cannot resolve; this boot program never runs as ClojureScript.
            #_{:clj-kondo/ignore [:unresolved-symbol]}
-           (spit (str (fs/path dir "config.json"))
+           (spit (fs/path dir "config.json")
                  (str "{\"domain_id\":\"" (:domain-id cfg) "\",\"api_key\":\""
                       (:api-key cfg) "\",\"out\":\"" (:out run) "\",\"window\":\""
                       (:window run) "\"}"))
-           (spit (str (fs/path dir "shell.html"))
+           (spit (fs/path dir "shell.html")
                  (str "<!doctype html><html><head><meta charset=\"utf-8\"><title>cohost-media</title></head>"
                       "<body style=\"margin:0\"><iframe src=\"/index.html?check=" page-check "\" "
                       "allow=\"cross-origin-isolated\" style=\"border:0;width:100vw;height:100vh;display:block\">"
@@ -1004,7 +1004,7 @@
       driven over the DevTools protocol. (A fixed --virtual-time-budget raced the page: its workers read the library over
       the network rung while virtual time ran on, and the shot caught an empty table.) Answers the rows it saw."
            [url shot n timeout-ms]
-           (let [dir (str (fs/create-temp-dir {:prefix "cohost-media-shot-"}))
+           (let [dir (fs/create-temp-dir {:prefix "cohost-media-shot-"})
            ;; --no-sandbox only where Chrome refuses to run without it (root);
            ;; anywhere else Chrome itself flags the flag as unsupported
                  flags (cond-> ["--headless=new" "--disable-gpu"
@@ -1014,7 +1014,7 @@
                                (= "root" (System/getProperty "user.name"))
                                (into ["--no-sandbox"]))
                  proc (apply p/process {:out :string :err :string} (:chrome tools) flags)
-                 port-file (str (fs/path dir "DevToolsActivePort"))]
+                 port-file (fs/path dir "DevToolsActivePort")]
                 (try
                  (let [port (loop [i 0]
                                   (cond
@@ -1094,7 +1094,7 @@
                got (loop []
                          (or (:page-check @(:control atoms))
                              (when (< (- (now) t0) timeout-ms) (pool/sleep-ms! 500) (recur))))
-               shot (str (fs/path (:dir run) "page.png"))
+               shot (fs/path (:dir run) "page.png")
                n (count (:files @(:library atoms)))
                [ok? seen] (try
                            [true
@@ -1313,10 +1313,10 @@
                          (when-not (zero? (:exit r))
                                    (println (:out r) (:err r))
                                    (throw (ex-info (str "build failed: " what) {:cmd cmd})))))
-            eve-src (str (fs/path eve-dir "src"))
+            eve-src (fs/path eve-dir "src")
         ;; (the adapters a ClojureScript build composes: the browser's http and thread adapters, Node's http server)
-            eve-adapters (str (fs/path eve-dir "adapters"))
-            app-src (str (fs/path app-dir "src"))]
+            eve-adapters (fs/path eve-dir "adapters")
+            app-src (fs/path app-dir "src")]
     ;; eve's own npm packages (shadow-cljs) and its native addon (built by npm install: node-gyp-build), which the Node
     ;; member's disk domains load
            (when (and (:node hosts)
@@ -1337,7 +1337,7 @@
                                    eve-adapters
                                    app-src
                                    cohost-src
-                                   (str (fs/path app-dir "page" "src"))])))
+                                   (fs/path app-dir "page" "src")])))
       ;; (cohost's src rides as an -Sdeps ALIAS's :extra-paths, never as -Sdeps :paths:
       ;; :paths there replaces the root paths and :browser-test's :replace-paths vanish
       ;; with them — eve.atom "not available", measured 2026-11-17)
@@ -1347,8 +1347,8 @@
                       "release" "cohost-media-page"))
            (when (:glj hosts)
                  (sh! "glj-cohost-media (eve's impls/glojure/build.sh; cached by its source stamp)" app-dir
-                      "bash" (str (fs/path eve-dir "impls" "glojure" "build.sh"))
-                      (str (fs/path app-dir "target" "glj-cohost-media"))))
+                      "bash" (fs/path eve-dir "impls" "glojure" "build.sh")
+                      (fs/path app-dir "target" "glj-cohost-media")))
            nil))
 
 (defn drop-file!
@@ -1356,7 +1356,7 @@
    three seconds of tone, written under a name the watcher skips and renamed into place); then the watcher's entry for
    it and the index are waited for again. {:ok :file :id :found-by :status :picked-up-ms :ms}."
       [run atoms procs state media-dir timeout-ms]
-      (let [dest (str (fs/path media-dir "f11-dropped.wav"))
+      (let [dest (fs/path media-dir "f11-dropped.wav")
             part (str dest ".part")]
            (ffmpeg! "-f" "lavfi" "-i" "sine=frequency=330:duration=3:sample_rate=48000"
                     "-ac" "2" "-f" "wav" part)
@@ -1411,7 +1411,7 @@
             run (new-run opts)
             _ (log "run" (:dir run) "window" (:window run))
             media-dir (if (:drop opts)
-                          (let [d (str (fs/path (:dir run) "media"))]
+                          (let [d (fs/path (:dir run) "media")]
                                (fs/copy-tree media-dir d)
                                d)
                           media-dir)
@@ -1459,8 +1459,8 @@
                                 (frequencies (map (comp :found-by val)
                                                   (:files @(:library atoms)))))]
                  (log (if ok? "complete in" "TIMED OUT after") wall "ms")
-                 (spit (str (fs/path (:dir run) "report.edn")) (pr-str report))
-                 (log "report" (str (fs/path (:dir run) "report.edn")))
+                 (spit (fs/path (:dir run) "report.edn") (pr-str report))
+                 (log "report" (fs/path (:dir run) "report.edn"))
                  (println (pr-str (select-keys report
                                                [:ok
                                                 :checks
@@ -1484,7 +1484,7 @@
 (defn demo-media!
       "The demo's ten files (generated once into ~/.cohost-media/demo-media): their directory."
       []
-      (let [media (str (fs/path (fs/home) ".cohost-media" "demo-media"))]
+      (let [media (fs/path (fs/home) ".cohost-media" "demo-media")]
            (when-not (and (fs/exists? media) (= 10 (count (fs/list-dir media))))
                      (fs/delete-tree media)
                      (log "generating ten demo files (lavfi) in" media)
@@ -1561,8 +1561,8 @@
                                          [n (select-keys r [:run :hosts :coordinator :supervisor :wall-ms :kill :checks
                                                             :ran-on :checksums :page :drop])])
                                      reports))}
-            f (str (fs/path (fs/home) ".cohost-media"
-                            (str "verify-" (str/replace (stamp-now) #"[:.]" "-") ".edn")))]
+            f (fs/path (fs/home) ".cohost-media"
+                       (str "verify-" (str/replace (stamp-now) #"[:.]" "-") ".edn"))]
            (spit f (pr-str out))
            (log "verify" (if (:ok out) "PASSED" "FAILED") f)
            (println (pr-str (select-keys out [:ok :rows :run-checks])))
@@ -1579,7 +1579,7 @@
                  (let [r (run-library! (assoc opts :stay true) (demo-media!))]
                       (if (:ok r) 0 1))
                  "scan"
-                 (let [r (run-library! (assoc opts :stay true) (str (fs/absolutize (first (:args opts)))))]
+                 (let [r (run-library! (assoc opts :stay true) (fs/absolutize (first (:args opts))))]
                       (if (:ok r) 0 1))
                  "verify"
                  (let [r (verify! opts)]
