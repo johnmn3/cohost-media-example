@@ -65,8 +65,8 @@ fleet template says `src test`.
 
 - [x] Step 0 tools complete
 - [x] Step 1 templates in + kondo cache + commit
-- [ ] Step 2 census
-- [ ] Step 3 format pass + demo boot
+- [x] Step 2 census (CENSUS.md @ f5a077e)
+- [~] Step 3 format pass committed (b52ceaf); boot check — see below
 - [ ] Step 4 fix campaign (via the integrated edit pipeline:
       clj-replace → clj-paren-repair → clj-kondo)
 - [ ] Step 6 gates + integrated pipeline trial
@@ -76,3 +76,47 @@ fleet template says `src test`.
 ## Named exceptions (suppressions / disables)
 
 (none yet)
+
+## Step 3 boot check — the record so far (2026-11-22 evening)
+
+Environment for all runs: bb 1.13.229 as bb, go on PATH
+(/home/hatch/.local/go/bin), EVE_CHROME = Playwright Chromium 147.
+A VM replacement mid-evening wiped /tmp and /root; tools were
+restored from the durable copies (this section's install notes) and
+the branch was verified intact at b52ceaf on origin.
+
+- Run 1 (all hosts): preflight failed — go/Chrome not on PATH yet.
+  Not an app failure.
+- Runs 2–3 (all hosts): the page build failed inside the demo.
+  Run 3's subprocess output shows the actual cause: shadow-cljs
+  par-compile abort — `eve/net/wire.cljc still waiting for
+  #{eve.net.json}` — in Eve's own sources, under load.
+- Direct discriminator: the identical shadow build command, run
+  standalone on the formatted tree, **completed** (147 files,
+  84 compiled, 382.67s). The formatted page/app sources compile.
+- Run 4 (all hosts): page build passed; Eve's glojure build failed —
+  its build.sh wraps `go build` in a 300 s timeout (`to 300`); a cold
+  Go cache on this loaded box (1.5 shared CPUs, many seats) exceeds
+  it. Standalone manual build: 2m5s; scripted rebuild with warm
+  cache: 18.6s, stamp written by build.sh itself.
+- Run 5/6 (all hosts, then reduced `--hosts bb,jvm,glj,jolt`):
+  **the app boots and runs** — domain created, pools up, bb member
+  joined (caps #{:index}), jolt joined (#{:pcm-native
+  :transcode-native}), glj media-server + watcher indexed all ten
+  demo files, browser member started. But the coordinator never
+  planned jobs: progress stayed {} until the program's own patience
+  thresholds fired (90 s no-progress abort in run 5; report
+  `{:ok false, :checks {:index-complete false}}`, wall 148.9 s, in
+  the reduced run). Reproducible in both runs.
+- CONTROL IN FLIGHT: the identical reduced demo on pristine upstream
+  main e096566 (zero lane changes) in scratch/control-pre-format.
+  If it stalls identically, the stall is a pre-existing condition at
+  this pin/environment and the format pass is exonerated; if it
+  completes, my branch is the cause and step 3 reverts.
+
+Boot-check verdict: PENDING the control. What is already proven:
+the formatted sources parse and compile everywhere they are compiled
+(cljs page build over the whole app graph; JVM loading of the full
+boot program; three member runtimes executing the shared .cljc
+sources), and every build failure so far traces to this box's load
+against Eve-side build machinery, never to an app file.
