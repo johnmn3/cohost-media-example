@@ -85,6 +85,9 @@
 ;; kondo: path is used in the :clj arm; unused-binding does not count
 ;; a reference that appears in only some #? arms.
 #_{:clj-kondo/ignore [:unused-binding]}
+;; splint: Math/round is the portable spelling across this file's
+;; hosts (see r128's note); clojure.math is clj-only naming.
+#_{:splint/disable [style/prefer-clj-math]}
 (pool/deftask loudness [{:keys [path]}]
               #?(:clj
                  (let [pcm (get-in @(st/library) [:files path :results :pcm])]
@@ -154,7 +157,7 @@
                       (ffmpeg! "-i" path "-vf" (str "fps=" n "/10,scale=" w ":" h ":force_original_aspect_ratio=decrease,pad=" w ":" h
                                                     ":(ow-iw)/2:(oh-ih)/2")
                                "-frames:v" (str n) (join d "t%02d.png"))
-                      (let [tiles (vec (sort (filter (fn [f] (.endsWith f ".png")) (vec (.readdirSync node-fs d)))))
+                      (let [tiles (vec (sort (filter (fn [f] (str/ends-with? f ".png")) (vec (.readdirSync node-fs d)))))
                             comps (clj->js (map-indexed (fn [i f] {:input (join d f)
                                                                    :left (* w (mod i em/sheet-cols))
                                                                    :top (* h (quot i em/sheet-cols))})

@@ -51,7 +51,7 @@
             [entries deferred]
             (reduce (fn [[entries deferred] [kind after]]
                         (let [needs (em/needs kind offered)
-                              missing (into (into #{} (remove coverage needs))
+                              missing (into (set (remove coverage needs))
                                             (mapcat (fn [a] (:missing (get deferred a))) after))]
                              (if (seq missing)
                                  [entries (assoc deferred kind {:needs needs :missing missing})]
@@ -141,6 +141,9 @@
             (second
              (reduce (fn [[ids submitted] [k after]]
                          (if (contains? deferred k)
+                             ;; splint: needs is used in the condition AND
+                             ;; both branches; if-let cannot express this.
+                             #_{:splint/disable [lint/let-if]}
                              (let [needs (em/needs k offered)]
                                   (if (and (every? coverage needs)
                                            (every? (fn [a] (contains? ids a)) after))
@@ -198,7 +201,7 @@
                          dag (when (seq deferred) (into {} (em/file-jobs (:kind e) (offered-caps dh))))
                          dead-inputs (into (set escalated) (:escalated e))
                          orphan? (fn [k] (boolean (some dead-inputs (get dag k))))
-                         deferred-escalated (vec (filter orphan? (keys deferred)))
+                         deferred-escalated (filterv orphan? (keys deferred))
                          submittable (reduce dissoc deferred deferred-escalated)
                          submitted (if (seq submittable)
                                        (submit-deferred! dh p (assoc e :jobs (merge ids resubmit) :deferred submittable)
@@ -208,7 +211,7 @@
                                              (keep (fn [[k info]]
                                                        (when-not (or (contains? submitted k) (some #{k} deferred-escalated))
                                                                  [k (assoc info :missing
-                                                                           (into #{} (remove coverage (:needs info))))])))
+                                                                           (set (remove coverage (:needs info))))])))
                                              deferred)
                          states (into states (map (fn [k] [k :queued])) (keys submitted))
                          escalated (into escalated deferred-escalated)

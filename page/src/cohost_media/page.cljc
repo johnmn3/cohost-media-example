@@ -122,6 +122,9 @@
 ;; The view's reader (a worker)
 ;; ===========================================================================
 
+;; splint: send-to-page! is not a conversion function - it sends a
+;; message TO the page; the -> spelling would misread as conversion.
+#_{:splint/disable [naming/conversion-functions]}
 (defn- send-to-page!
        "msg into the page's mailbox, waiting while it is full (the page drains it every 100 ms)."
        [reply msg]
@@ -596,7 +599,10 @@
                      (h/start-threads! 1 'cohost-media.page/probe-main {} {}))]
             (swap! state assoc :check check :runtime w :viewer viewer)
             (add-watch state ::render (fn [_ _ old new] (when-not (identical? old new) (render!))))
-            (js/setInterval (fn [] (loop [] (let [m (h/receive! 0)] (when (map? m) (on-message m) (recur))))) 100)
+            (js/setInterval ;; splint: loop/recur in this anonymous fn is the
+                            ;; constant-stack recursion; direct recursion would overflow.
+             #_{:splint/disable [lint/empty-loop-in-fn]}
+             (fn [] (loop [] (let [m (h/receive! 0)] (when (map? m) (on-message m) (recur))))) 100)
             (render!)))
 
 (defn init

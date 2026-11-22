@@ -174,6 +174,33 @@ property (no edit on non-zero exit) held in every case.
    Kondo reports this linter once per alias at its first use, so one
    discard per alias suffices — verified empirically.
 
+## Splint exceptions (step 4, splint campaign)
+
+Fixed in code (20 of 30 current findings): eq-zero, filterv,
+into-literal ×2, let-when, let-if (core), prefer-clj-string,
+plus-one ×2, apply-str ×2 (start), not-some-pred ×2, prefer-condp,
+loop-empty-when ×3 (rewritten as `while`).
+
+Disabled at site with reasons (10):
+- `lint/empty-loop-in-fn` ×5 (start ×4, page ×1): the loops sit in
+  ANONYMOUS watcher fns; loop/recur is the constant-stack recursion
+  and direct self-recursion would overflow. (Placement note: the
+  discard must precede the fn form, not the loop — verified on a
+  scratch file.)
+- `style/prefer-clj-math` ×4 sites (r128 log10 + peaks, tasks
+  loudness): `Math/` interop is the one spelling that runs on every
+  host these portable files target; clojure.math has no cljs
+  counterpart under that name.
+- `style/useless-do` ×1 (start): the `do` groups several defs under
+  one `#?(:clj …)` arm — load-bearing, not useless.
+- `naming/conversion-functions` ×1 (page send-to-page!): not a
+  conversion fn — it sends a message TO the page.
+- `lint/let-if` ×1 (coordinator): the binding is used in the
+  condition AND both branches; if-let cannot express the shape.
+- `style/apply-str` ×1 (phash): the file is deliberately
+  dependency-free (hand-rolled cosine); str/join would add a
+  require.
+
 ## Step 3 RESOLUTION (2026-11-22, ~22:20 ET)
 
 **Defect (re-derived, provenance below): the fleet template's

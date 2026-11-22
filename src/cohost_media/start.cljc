@@ -255,22 +255,21 @@
                              :cmd ["in-process" "cohost-media.gateway"]}}
                  (map (fn [h]
                           (let [rid (name h)]
-                               (cond
-                                (= :jvm h)
-                                [rid {:host h :member? true :wait [] :logs logs :dir eve-dir :env {}
-                                      :cmd ["in-process" "cohost-media.member"]}]
-                                (= :browser h)
-                                [rid {:host h :member? true :wait [] :logs logs :dir eve-dir :env {}
-                                      :cmd ["in-process" "cohost.cljs-pool" ":browser"]
-                                      :args (browser-args cfg)}]
-                                (= :node h)
-                                [rid {:host h :member? true :wait [] :logs logs :dir eve-dir :env {}
-                                      :cmd ["in-process" "cohost.cljs-pool" ":node"]
-                                      :args (node-args)}]
-                                :else
-                                (let [{:keys [cmd env dir]} (member-cmd h rid (:base run) (:out run) (:window run) cfg)]
-                                     [rid {:host h :member? true :cmd (mapv str cmd) :env (or env {}) :dir (str (or dir eve-dir))
-                                           :logs logs :wait (case h :bb [:gateway] [])}])))))
+                               (condp = h
+                                      :jvm
+                                      [rid {:host h :member? true :wait [] :logs logs :dir eve-dir :env {}
+                                            :cmd ["in-process" "cohost-media.member"]}]
+                                      :browser
+                                      [rid {:host h :member? true :wait [] :logs logs :dir eve-dir :env {}
+                                            :cmd ["in-process" "cohost.cljs-pool" ":browser"]
+                                            :args (browser-args cfg)}]
+                                      :node
+                                      [rid {:host h :member? true :wait [] :logs logs :dir eve-dir :env {}
+                                            :cmd ["in-process" "cohost.cljs-pool" ":node"]
+                                            :args (node-args)}]
+                                      (let [{:keys [cmd env dir]} (member-cmd h rid (:base run) (:out run) (:window run) cfg)]
+                                           [rid {:host h :member? true :cmd (mapv str cmd) :env (or env {}) :dir (str (or dir eve-dir))
+                                                 :logs logs :wait (case h :bb [:gateway] [])}])))))
                  hosts)))
 
 ;; ---------------------------------------------------------------------------
@@ -382,6 +381,9 @@
    thread (a cohost.thread spawn) waits for its readiness, then starts it."
        [atoms procs rid child]
        (thread/spawn
+           ;; splint: an anonymous watcher fn - loop/recur is the
+           ;; constant-stack recursion; direct recursion would overflow.
+        #_{:splint/disable [lint/empty-loop-in-fn]}
         (fn []
             (loop []
                   (cond (sv/stopping? (:control atoms)) nil
@@ -394,6 +396,9 @@
    restart policy; a clean exit (the run's :stop) ends the watch."
        [run atoms cfg ex procs]
        (thread/spawn
+           ;; splint: an anonymous watcher fn - loop/recur is the
+           ;; constant-stack recursion; direct recursion would overflow.
+        #_{:splint/disable [lint/empty-loop-in-fn]}
         (fn []
             (loop []
                   (let [ctl (:control atoms)
@@ -424,6 +429,9 @@
    JVM member's own watch restarts it when its serve! ends. The watch is a cohost.thread spawn."
        [atoms procs]
        (thread/spawn
+           ;; splint: an anonymous watcher fn - loop/recur is the
+           ;; constant-stack recursion; direct recursion would overflow.
+        #_{:splint/disable [lint/empty-loop-in-fn]}
         (fn []
             (loop []
                   (when-not (sv/stopping? (:control atoms))
@@ -454,6 +462,9 @@
       "ico" "image/x-icon" "mp3" "audio/mpeg" "wav" "audio/wav"
       "mp4" "video/mp4" "webm" "video/webm" "mov" "video/quicktime"})
 
+;; splint: the do is load-bearing - it groups the :clj arm's defs
+;; under one reader conditional; without it the arm splices one form.
+#_{:splint/disable [style/useless-do]}
 #?(:clj
    (do
     (defn- out-file-resp
@@ -551,6 +562,9 @@
        [run atoms cfg procs child]
        #?(:clj
           (thread/spawn
+              ;; splint: an anonymous watcher fn - loop/recur is the
+              ;; constant-stack recursion; direct recursion would overflow.
+           #_{:splint/disable [lint/empty-loop-in-fn]}
            (fn []
                (loop []
                      (let [ctl (:control atoms)
@@ -780,14 +794,12 @@
        (catch Exception e
               (log "the stop could not be written (" (ex-message e) "); the pools are killed")))
       (let [t0 (now)]
-           (loop []
-                 (when (and (< (- (now) t0) 40000)
-                            (or (some (fn [[rid v]] (and (not= "browser" rid)
-                                                         (p/proc? v) (p/alive? v))) @procs)
-                                (and (contains? @procs "jvm")
-                                     (not= :stopped (get-in @(:control atoms) [:members "jvm" :state])))))
-                       (pool/sleep-ms! 300)
-                       (recur))))
+           (while (and (< (- (now) t0) 40000)
+                       (or (some (fn [[rid v]] (and (not= "browser" rid)
+                                                    (p/proc? v) (p/alive? v))) @procs)
+                           (and (contains? @procs "jvm")
+                                (not= :stopped (get-in @(:control atoms) [:members "jvm" :state])))))
+                  (pool/sleep-ms! 300)))
       (doseq [[_ v] @procs
               :when (p/proc? v)]
              (p/destroy-tree v))
@@ -831,7 +843,7 @@
                     buf (byte-array 65536)]
                    (with-open [in (java.io.FileInputStream. (str path))]
                               (loop [] (let [n (.read in buf)] (when (pos? n) (.update md buf 0 n) (recur)))))
-                   (apply str (map #(format "%02x" (bit-and % 0xff)) (.digest md))))
+                   (str/join (map #(format "%02x" (bit-and % 0xff)) (.digest md))))
          :cljs (throw (ex-info "start: checksums are the boot seat's" {}))))
 
 (defn rid-of [owner] (when owner (first (str/split owner #"#"))))
@@ -927,7 +939,7 @@
          :cljs (throw (ex-info "start: ports are the boot seat's" {}))))
 
 (defn random-hex [n]
-      (apply str (repeatedly n #(rand-nth "0123456789abcdef"))))
+      (str/join (repeatedly n #(rand-nth "0123456789abcdef"))))
 
 (defn display?
       "Whether this machine shows windows: macOS, or a Linux session with an X or Wayland display."
@@ -1394,12 +1406,12 @@
    once the index is complete."
       [opts media-dir]
       (let [hosts (let [hs (or (:hosts opts) default-hosts)
-                        jolt? (or (not (some #{:jolt} hs)) (:strict opts) (empty? (preflight [:jolt])))]
+                        jolt? (or (not-any? #{:jolt} hs) (:strict opts) (empty? (preflight [:jolt])))]
                        (when-not jolt?
                                  (log "jolt cannot run here (" (str/join "; " (preflight [:jolt])) "): the JVM's ffmpeg CLI transcodes"))
                        (vec (cond->> hs
                                      (not jolt?) (remove #{:jolt})
-                                     (or (:no-browser opts) (not (some #{:glj} hs)))
+                                     (or (:no-browser opts) (not-any? #{:glj} hs))
                                      (remove #{:browser}))))
             browser? (boolean (some #{:browser} hosts))
             _ (when (:install opts) (setup! hosts))

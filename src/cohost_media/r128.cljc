@@ -32,6 +32,10 @@
                            (recur (inc i) x x1 y y1 u u1 acc))
                       out))))
 
+;; splint: Math/ interop is the one spelling that runs on every host
+;; this portable file targets (clj, jolt, cljs); clojure.math has no
+;; ClojureScript counterpart under that name.
+#_{:splint/disable [style/prefer-clj-math]}
 (defn- log10 [x] (/ (Math/log x) (Math/log 10.0)))
 
 (defn- lufs [power] (+ -0.691 (* 10.0 (log10 power))))
@@ -56,6 +60,8 @@
                       (when (seq gated)
                             (lufs (/ (reduce + 0.0 gated) (count gated))))))))
 
+;; splint: Math/ interop is the portable spelling (see log10 above).
+#_{:splint/disable [style/prefer-clj-math]}
 (defn peaks
       "k waveform peaks of xs: the largest absolute sample (any channel) in each of k equal spans, rounded to 1e-4."
       [^doubles xs ch k]
