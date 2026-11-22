@@ -253,6 +253,58 @@ AND the composed eve/cohost trees:
   the pass; its data is unchanged and the raw evidence in
   census-raw/ is excluded and untouched.)
 
+## Templates v2 sync + AGENTS.md (coordinator steer, Nov 22 evening)
+
+- **AGENTS.md** copied byte-identical from
+  `templates/AGENTS.md` (verified by diff). The repo had NO
+  pre-existing agent-instruction files (no AGENTS.md / CLAUDE.md),
+  so nothing was merged.
+- **bb.edn** fleet section matches templates v2: `lint-docs`
+  (`dprint check`) present and `lint` depends on it; task paths
+  adapted to this repo (`src page/src`) as before.
+- **Config drift vs templates** (checked by diff at the tip):
+  `.splint.edn` identical; `.cljfmt.edn` differs ONLY by the
+  documented `:sort-ns-references? false` deviation (exception #1,
+  RETRO item 1); `.clj-kondo/config.edn` differs ONLY by the
+  documented additions (`:lint-as` deftask + the defcfn hook,
+  exception #5, RETRO item 3). No other drift.
+- **Environment note**: a session cycle this evening partially
+  wiped `/root` (SSH known_hosts, parts of `/root/.m2`). Recovery
+  was the documented one — SSH config restored from the durable
+  copy + host key re-accepted; the missing Maven artifacts for
+  the splint and carve dep trees were re-seeded by curl from
+  Clojars / repo.maven.apache.org into both `/home/hatch/m2repo`
+  and `/root/.m2/repository` (per-artifact "Could not transfer …
+  from central" loop until resolution converged). No silent
+  workarounds; the tools and pins never changed.
+
+## Census → zero accounting (exit criteria)
+
+| Tool      | Census                                                         | Final          | Delta accounted                                                                                                                                                                                                                                                                      |
+| --------- | -------------------------------------------------------------- | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| clj-kondo | 99 err · 67 warn · 38 info (204)                               | 0 · 0 · 1 info | every class fixed in code, taught via config (deftask/defcfn), or suppressed at site with a written reason — STATUS exceptions #2–#9; the 1 remaining info is tasks' unused-excluded-var, BY DESIGN (the ns excludes clojure.core/meta to define its own), left visible deliberately |
+| Splint    | 32 (30 at campaign start; 2 had been kondo-batch side effects) | 0              | 20 fixed in code; 10 disabled at site with reasons (STATUS splint exceptions)                                                                                                                                                                                                        |
+| Carve     | 18 (28 at campaign start)                                      | 0              | 7 dead vars deleted (grep-verified); 21 name-reached entry points in `.carve/ignore` with reasons; 2 already deleted during the kondo campaign                                                                                                                                       |
+| cljfmt    | 21 of 22 files unformatted                                     | 0              | format pass (redone without ns sorting — see step 3); `bb fmt` twice = second run no-op, verified at the tip                                                                                                                                                                         |
+
+Exit criteria, verified at the branch tip:
+
+- `bb lint` exits 0 (all five legs: kondo, splint, carve,
+  fmt-check, lint-docs).
+- The demo boots: reduced-hosts runs on the formatted tree, the
+  post-splint tree and the final tip all reached `{:planned 10}`
+  (all ten files planned), stage-identical to the pristine-source
+  control. End-to-end completion remains blocked by the
+  pre-existing pin/box claim-stall, control-proven on pristine
+  sources (step 3 verdict) — not a lane change.
+- Census → zero delta accounted line by line (table above +
+  the per-class sections).
+- RETRO.md banked (12 proposed template changes with evidence).
+- Integrated pipeline trial banked (step 6 section): clj-replace
+  → clj-paren-repair → clj-kondo on 3 real edits + the exit-4
+  exercise; repair output == `cljfmt fix` byte-for-byte on all
+  trial files; second repair pass a byte no-op.
+
 ## Step 3 RESOLUTION (2026-11-22, ~22:20 ET)
 
 **Defect (re-derived, provenance below): the fleet template's
