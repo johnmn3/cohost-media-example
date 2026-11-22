@@ -201,6 +201,28 @@ Disabled at site with reasons (10):
   dependency-free (hand-rolled cosine); str/join would add a
   require.
 
+## Carve campaign (step 4) — DONE
+
+Carve at census: 18. After the kondo campaign it reported 28 (the
+deftask vars became visible to its analysis; the two kondo-deleted
+vars dropped off). Dispositions, each grep-verified across the repo
+AND the composed eve/cohost trees:
+- DELETED (7, no caller anywhere, no name-resolution reference):
+  start/alive? (superseded by babashka.process/alive?, which the
+  same file uses), supervise/children, state/control,
+  domain/open-rungs, phash/groups (work uses groups-from-edges),
+  boot-fs/parent, boot-fs/canonicalize.
+- KEPT via `.carve/ignore` (21, reached BY NAME at runtime):
+  tasks/* ×12 (pool registry dispatch), page
+  runtime-main/probe-main/view-main/init (shadow :init-fn + quoted
+  thread entries), av-jolt transcode-job!/pcm-job! (native-fn quoted
+  symbols), meta/run! (requiring-resolve), member
+  node-state/node-serve! (seat calls by name in the realm).
+- Format note: carve reads `.carve/ignore` as EDN
+  (`edn/read-string "[%s]"`) — `#` comments crash it
+  ("No dispatch macro for:"); comments must be `;;`.
+- `bb carve-report` now exits 0.
+
 ## Step 3 RESOLUTION (2026-11-22, ~22:20 ET)
 
 **Defect (re-derived, provenance below): the fleet template's

@@ -94,11 +94,3 @@
                 sort
                 vec)))
 
-(defn groups
-      "The duplicate groups of hashes ({id hex})."
-      [hashes]
-      (let [ids (vec (sort (keys hashes)))]
-           (groups-from-edges ids (for [i (range (count ids)) j (range (inc i) (count ids))
-                                        :let [a (nth ids i) b (nth ids j)]
-                                        :when (<= (distance (get hashes a) (get hashes b)) threshold)]
-                                       [a b]))))

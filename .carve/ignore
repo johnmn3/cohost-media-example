@@ -1,0 +1,33 @@
+;; carve keep-list: vars reached BY NAME at runtime (quoted symbols,
+;; requiring-resolve, registry dispatch, host entry points) - carve's
+;; static analysis cannot see those calls. NOTE: carve reads this file
+;; as EDN, so comments use ;; and entries are bare symbols.
+;; tasks/*: pool deftask vars, dispatched by the pool registry under
+;; their task names (jobs name tasks, never the vars).
+cohost-media.tasks/index
+cohost-media.tasks/group
+cohost-media.tasks/meta
+cohost-media.tasks/phash
+cohost-media.tasks/transcode
+cohost-media.tasks/pcm
+cohost-media.tasks/loudness
+cohost-media.tasks/publish
+cohost-media.tasks/thumb
+cohost-media.tasks/sheet
+cohost-media.tasks/tags
+cohost-media.tasks/waveform
+;; page entries: shadow-cljs :init-fn and worker entry points started
+;; by quoted symbol (h/start-threads! 'cohost-media.page/probe-main).
+cohost-media.page/runtime-main
+cohost-media.page/probe-main
+cohost-media.page/view-main
+cohost-media.page/init
+;; av-jolt jobs: resolved by av.cljc via (native-fn 'cohost-media.av-jolt/...).
+cohost-media.av-jolt/transcode-job!
+cohost-media.av-jolt/pcm-job!
+;; meta/run!: (requiring-resolve 'cohost-media.meta/run!) in tasks.cljc.
+cohost-media.meta/run!
+;; member node entries: the seat loads the ns (:load-ns) and calls
+;; node-serve! in the realm by name; node-state is its state read.
+cohost-media.member/node-state
+cohost-media.member/node-serve!

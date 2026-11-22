@@ -35,8 +35,6 @@
           (let [n (.getName (file x)) i (.lastIndexOf n ".")]
                (when (pos? i) (subs n (inc i)))))
 
-    (defn parent [x] (some-> (->path x) .getParent str))
-
     (defn create-dirs [x] (Files/createDirectories (->path x) (into-array FileAttribute [])) (str x))
 
     (defn list-dir
@@ -91,10 +89,6 @@
            (str (Files/createTempDirectory (str (or (:prefix opts) opts "cohost-media-")) (into-array FileAttribute [])))))
 
     (defn absolutize [x] (str (.toAbsolutePath (.normalize (->path x)))))
-
-    (defn canonicalize [x]
-          (let [p (->path x)]
-               (str (if (exists? x) (.toRealPath p (into-array java.nio.file.LinkOption [])) (.toAbsolutePath (.normalize p))))))
 
     (defn last-modified-time [x] (Files/getLastModifiedTime (->path x) (into-array java.nio.file.LinkOption [])))
 

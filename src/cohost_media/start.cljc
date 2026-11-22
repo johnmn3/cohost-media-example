@@ -647,8 +647,6 @@
                                        (log "the gateway is still starting (" (quot waited 1000) "s)"))
                                  (pool/sleep-ms! 300) (recur (+ waited 300)))))))
 
-(defn alive? [pid] (zero? (:exit (p/shell {:continue true :out :string :err :string} "kill" "-0" (str pid)))))
-
 (defn kill-9! [pid] (p/shell {:continue true} "kill" "-9" (str pid)))
 
 ;; ---------------------------------------------------------------------------

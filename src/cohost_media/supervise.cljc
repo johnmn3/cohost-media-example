@@ -21,8 +21,6 @@
 
 (defn value [control] (domain/read-atom control))
 
-(defn children [control] (:children (value control)))
-
 (defn stopping? [control] (boolean (:stop (value control))))
 
 (defn ready?

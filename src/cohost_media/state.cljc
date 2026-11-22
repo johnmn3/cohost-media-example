@@ -6,4 +6,3 @@
 
 (defn library [] (:library @ctx))
 (defn index [] (:index @ctx))
-(defn control [] (:control @ctx))

@@ -27,13 +27,6 @@
             :index (pool/domain-atom d em/index-name {:complete? false})
             :control (pool/domain-atom d em/control-name {:members {}})}))
 
-(defn open-rungs
-      "The same atoms reached over the network (open-rung names one): for a member that joins through the
-   gateway."
-      [open-rung]
-      (pool/open-rungs open-rung [[:jobs em/jobs-name] [:library em/library-name]
-                                  [:index em/index-name] [:control em/control-name]]))
-
 (defn read-atom
       "The value of a (a shared atom: deref; its network reach: its read)."
       [a]
