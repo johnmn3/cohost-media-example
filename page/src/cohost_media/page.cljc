@@ -238,6 +238,9 @@
 ;; The feed: every step the page sees, newest first
 ;; ---------------------------------------------------------------------------
 
+;; kondo: js-obj is a ClojureScript form the clj analysis pass cannot
+;; resolve; this page never runs as clj.
+#_{:clj-kondo/ignore [:unresolved-symbol]}
 (defn- clock [] (.toLocaleTimeString (js/Date.) js/undefined (js-obj "hour12" false)))
 
 (defn- feed! [events]

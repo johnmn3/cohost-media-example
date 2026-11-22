@@ -135,6 +135,24 @@ property (no edit on non-zero exit) held in every case.
    serve! dropped unused `:as` bindings, start seat-handler dropped
    its unused `atoms` param (+ call site), start check renamed its
    unused `run` param to `_run`.
+5. **`.clj-kondo/config.edn` additions + one hook file** (deviation
+   from the fleet template's bare version pin, proposed in
+   RETRO.md): `:lint-as {cohost.pool/deftask clojure.core/defn}` and
+   an analyze-call hook for `jolt.ffi/defcfn`
+   (`.clj-kondo/hooks/jolt.cljc`) — defcfn's type-only arg vectors
+   (with a `:&` varargs marker) are not defn-shaped, so a hook
+   rewrites it to a def of an unknown-returning fn of matching
+   arity. Together these took unresolved-symbol from 99 errors to
+   10, and made kondo analyze bodies it previously skipped.
+6. **Nine `#_{:clj-kondo/ignore [:unresolved-symbol]}` site
+   suppressions** for the remaining 10 errors (start slurp/Throwable/
+   Exception/spit/alter-var-root/read-line, av-jolt Throwable/
+   with-open, page js-obj). Reason: kondo lints every .cljc under
+   BOTH language passes, but these files are single-language in
+   practice — start and av-jolt never run as ClojureScript (their
+   unconditioned JVM/host core names fail the cljs pass), and the
+   page never runs as clj (js-obj fails the clj pass). Each site is
+   commented with its direction.
 
 ## Step 3 RESOLUTION (2026-11-22, ~22:20 ET)
 

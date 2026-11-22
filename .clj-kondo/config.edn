@@ -5,4 +5,14 @@
 ; default gate. Linter levels are never demoted to make a repo pass;
 ; off-by-default idiom linters are enabled in deliberate fleet-wide
 ; batches, recorded here.
-{:min-clj-kondo-version "2026.10.26"}
+{:min-clj-kondo-version "2026.10.26"
+ ;; Repo-local addition (proposed to the fleet in RETRO.md): teach
+ ;; kondo the two defining macros this codebase builds on. Without
+ ;; this, every var they define reads as an unresolved symbol and
+ ;; their bodies are not analyzed at all.
+ ;;  cohost.pool/deftask  - defines one task var per pool task
+ ;; (jolt.ffi/defcfn is NOT defn-shaped - its arg vectors carry type
+ ;; specs - so it is taught by the analyze-call hook in
+ ;; .clj-kondo/hooks/jolt.cljc instead.)
+ :lint-as {cohost.pool/deftask clojure.core/defn}
+ :hooks {:analyze-call {jolt.ffi/defcfn hooks.jolt/defcfn}}}

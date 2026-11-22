@@ -47,7 +47,7 @@
 
 (def ^:private avutil-major
      "The major of the libavutil loaded: the newest of releases' found."
-     (or (some (fn [m] (try (ffi/load-library (lib-candidates "avutil" m)) m (catch Throwable _ nil)))
+     (or (some (fn [m] #_{:clj-kondo/ignore [:unresolved-symbol]} (try (ffi/load-library (lib-candidates "avutil" m)) m (catch Throwable _ nil)))
                (sort > (keys releases)))
          (throw (ex-info (str "cohost-media.av: no libavutil of FFmpeg " (str/join ", " (map :name (vals releases)))
                               " found (EVE_FFMPEG_LIB: the directory holding FFmpeg's libraries)")
@@ -370,6 +370,9 @@
       "The first audio stream of in decoded to f32le, stereo, 48 kHz into the file dest: {:frames n :bytes b}, or nil
    when in has no audio."
       [in dest]
+      ;; kondo: with-open is a JVM/jolt core macro the cljs analysis
+      ;; pass cannot resolve; this file runs only on the jolt seat.
+      #_{:clj-kondo/ignore [:unresolved-symbol]}
       (with-open [a (ffi/confined-arena)]
                  (let [ic (open-input a in)
                        d (open-decoder a ic MEDIA-AUDIO)]

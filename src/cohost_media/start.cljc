@@ -80,6 +80,9 @@
 
 (def eve-dir (str (fs/absolutize ".")))
 (def app-dir (str (fs/path eve-dir "capstone" "cohost-media")))
+;; kondo: slurp is a clojure.core name the cljs analysis pass cannot
+;; resolve; this boot program never runs as ClojureScript.
+#_{:clj-kondo/ignore [:unresolved-symbol]}
 (def hosts-edn (edn/read-string (slurp (str (fs/path eve-dir "hosts.edn")))))
 
 (def cohost-src
@@ -402,8 +405,8 @@
                                                                    (str "http://127.0.0.1:" (:gateway-port cfg) "/gw")
                                                                    (:api-key cfg) (:jvm pool-configs))))))
                              _ (clojure.core/swap! procs assoc rid {:in-process true :future fut})
-                             [code err] (try (let [[ok? e] (thread/deref-future fut)] [(if ok? 0 1) e])
-                                             (catch Throwable t [1 t]))]
+                             [code err] #_{:clj-kondo/ignore [:unresolved-symbol]} (try (let [[ok? e] (thread/deref-future fut)] [(if ok? 0 1) e])
+                                                                                        (catch Throwable t [1 t]))]
                             (when-not (zero? code)
                                       (println (pr-str {:step :jvm-member-error :rid rid :error (str err)}))
                                       (when (instance? Throwable err) (.printStackTrace ^Throwable err)))
@@ -767,6 +770,9 @@
    executors shut down — the JVM member's, the browser seat's and the node seat's alike — or,
    after 40 s, what is left is killed."
       [atoms procs]
+      ;; kondo: Exception is a JVM class name the cljs analysis pass
+      ;; cannot resolve; this boot program never runs as ClojureScript.
+      #_{:clj-kondo/ignore [:unresolved-symbol]}
       (try
        (write! atoms :control assoc :stop true)
        (catch Exception e
@@ -963,6 +969,9 @@
            (doseq [f ["main.js" "manifest.edn"]
                    :when (fs/exists? (fs/path built f))]
                   (fs/copy (fs/path built f) (fs/path dir "js" f)))
+           ;; kondo: spit is a clojure.core name the cljs analysis pass
+           ;; cannot resolve; this boot program never runs as ClojureScript.
+           #_{:clj-kondo/ignore [:unresolved-symbol]}
            (spit (str (fs/path dir "config.json"))
                  (str "{\"domain_id\":\"" (:domain-id cfg) "\",\"api_key\":\""
                       (:api-key cfg) "\",\"out\":\"" (:out run) "\",\"window\":\""
@@ -1277,6 +1286,9 @@
            (when (and brew? (seq casks))
                  (log "setup: brew install --cask" (str/join " " casks))
                  (apply p/shell "brew" "install" "--cask" casks))
+           ;; kondo: alter-var-root is a clojure.core name the cljs
+           ;; analysis pass cannot resolve; never ClojureScript here.
+           #_{:clj-kondo/ignore [:unresolved-symbol]}
            (alter-var-root #'tools (fn [_] (find-tools)))
            (let [left (preflight hosts)]
                 (if (seq left)
@@ -1459,6 +1471,9 @@
                                                 :wall-ms])))
                  (when (and (:stay opts) browser? page? (:show-page cfg))
                        (log "the page stays up:" (str "http://127.0.0.1:" (:page-port cfg) "/index.html") "— Enter ends the run")
+                       ;; kondo: read-line is a clojure.core name the cljs
+                       ;; analysis pass cannot resolve; never cljs here.
+                       #_{:clj-kondo/ignore [:unresolved-symbol]}
                        (read-line))
                  report)
             (finally
