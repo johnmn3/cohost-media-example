@@ -136,7 +136,7 @@
    carries it (prepare-page!) and the check that reads it back (browser-check!)."
      "f01:thumb")
 
-(defn- display?
+(defn- gui-session?
        "A GUI session this process can open a window in: a macOS or Windows demo runs in the
    user's desktop session; on Linux a display server names itself in the environment
    (DISPLAY, WAYLAND_DISPLAY). No display — a server box, a CI run — means the browser
@@ -163,13 +163,13 @@
    PATH), handed to the seat explicitly: the seat's own search knows no macOS app or
    cache locations, so an app that found a browser and did not say so left the seat to
    find none (John's Mac, 2026-11-17: the browser member never launched). It opens a
-   window where a GUI session exists (display?) and runs headless where none does."
+   window where a GUI session exists (gui-session?) and runs headless where none does."
       [cfg]
       {:seat :browser
        :bootstream (str (fs/path (:page cfg) "shell.html"))
        :server {:port (:page-port cfg)}
        :chrome {:bin (:chrome tools)
-                :headless (not (display?))}})
+                :headless (not (gui-session?))}})
 
 (defn node-args
       "The node pool's args, as data — the one source the start call (start-seat!) reads: the seat
