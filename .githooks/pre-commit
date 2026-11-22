@@ -1,0 +1,17 @@
+#!/bin/sh
+# Fleet syntax gate (syntax-formalization campaign): format check +
+# clj-kondo on the staged Clojure files, with the repo's own pinned
+# configs (.cljfmt.edn, .clj-kondo/config.edn).
+#
+# Enable once per clone:
+#   git config core.hooksPath .githooks
+#
+# Tools (pinned fleet versions) must be on PATH: cljfmt 0.16.6,
+# clj-kondo 2026.10.26. The full gate is `bb lint`.
+set -e
+files=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.clj[cs]?$' || true)
+if [ -z "$files" ]; then
+  exit 0
+fi
+echo "$files" | xargs cljfmt check
+echo "$files" | xargs clj-kondo --lint

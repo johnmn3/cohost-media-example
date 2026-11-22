@@ -48,6 +48,9 @@
   carve-report {:doc "fail if any unused var is reported"
                 :task (shell "carve --opts '{:paths [\"src\" \"page/src\"] :report {:format :text}}'")}
 
+  lint-docs {:doc "dprint check over docs/config (config: dprint.json)"
+             :task (shell "dprint check")}
+
   fmt-check {:doc "cljfmt check — the fleet .cljfmt.edn is the rules"
              :task (shell "cljfmt check src page/src")}
 
@@ -55,4 +58,4 @@
        :task (shell "cljfmt fix src page/src")}
 
   lint {:doc "the whole gate"
-        :depends [lint-kondo lint-splint carve-report fmt-check]}}}
+        :depends [lint-kondo lint-splint carve-report fmt-check lint-docs]}}}
